@@ -13,8 +13,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
+import androidx.navigation.NavController
+import com.example.liveholdempokertracker.ui.navigation.Screen
+
 @Composable
-fun NewSessionScreen() {
+fun NewSessionScreen(navController: NavController) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -26,7 +29,7 @@ fun NewSessionScreen() {
             Text("기존 게임 설정 불러오기")
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { /*TODO*/ }) {
+        Button(onClick = { navController.navigate(Screen.NewSessionSetup.route) }) {
             Text("신규 게임 세션 설정")
         }
     }

@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.liveholdempokertracker.ui.home.HomeScreen
 import com.example.liveholdempokertracker.ui.new_session.NewSessionScreen
+import com.example.liveholdempokertracker.ui.new_session.NewSessionSetupScreen
 import com.example.liveholdempokertracker.ui.profile.ProfileScreen
 import com.example.liveholdempokertracker.ui.profile.ProfileListScreen
 import com.example.liveholdempokertracker.ui.profile.MergeProfileScreen
@@ -24,7 +25,10 @@ fun AppNavigation() {
             HomeScreen(navController = navController)
         }
         composable(Screen.NewSession.route) {
-            NewSessionScreen()
+            NewSessionScreen(navController = navController)
+        }
+        composable(Screen.NewSessionSetup.route) {
+            NewSessionSetupScreen()
         }
         composable(Screen.Profile.route) {
             ProfileScreen(navController = navController)
