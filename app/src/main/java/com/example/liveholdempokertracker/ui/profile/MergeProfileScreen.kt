@@ -12,11 +12,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import com.example.liveholdempokertracker.ui.navigation.Screen
 
 @Composable
-fun ProfileScreen(navController: NavController) {
+fun MergeProfileScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -24,12 +22,18 @@ fun ProfileScreen(navController: NavController) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Button(onClick = { navController.navigate(Screen.ProfileList.route) }) {
-            Text("프로필 데이터 리스트")
+        Text("프로필 합치기 화면")
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = { /*TODO*/ }) {
+            Text("첫 번째 프로필 선택")
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Button(onClick = { /*TODO*/ }) {
+            Text("두 번째 프로필 선택")
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { navController.navigate(Screen.MergeProfile.route) }) {
-            Text("프로필 데이터 합치기")
+        Button(onClick = { /*TODO*/ }) {
+            Text("프로필 합치기")
         }
     }
 }
