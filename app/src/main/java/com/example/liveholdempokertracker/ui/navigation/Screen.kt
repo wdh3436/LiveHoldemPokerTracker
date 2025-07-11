@@ -10,4 +10,5 @@ sealed class Screen(val route: String) {
     object Settings : Screen("settings")
     object AppSettings : Screen("app_settings")
     object BackupRestore : Screen("backup_restore")
+    object CurrentSession : Screen("current_session")
 }
