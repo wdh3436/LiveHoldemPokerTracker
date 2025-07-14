@@ -135,24 +135,29 @@ class SessionViewModel @Inject constructor() : ViewModel() {
 
         if (activePlayers.isEmpty()) return true // 모든 플레이어가 폴드한 경우
 
-        // 베팅이 없는 경우 (모두 체크)
-        if (currentBet.value == 0) {
-            return activePlayers.all { index ->
-                playerActionStatus[index] == true // 모든 활성 플레이어가 액션을 취했는지 확인
-            }
+        // Check if all active players have taken an action in the current betting round
+        val allPlayersActedInCurrentRound = activePlayers.all { index ->
+            playerActionStatus[index] == true
         }
 
-        // 베팅이 있는 경우
+        if (!allPlayersActedInCurrentRound) return false // Not all players have acted yet
+
+        // If there's no current bet, and all players have acted, the round is done (all checked)
+        if (currentBet.value == 0) {
+            return true
+        }
+
+        // If there's a current bet, check if all active players have called/raised/folded to it
         val allCalledOrFolded = activePlayers.all { index ->
             val playerContribution = playerContributions.getOrDefault(index, 0)
-            playerContribution >= currentBet.value || seatAssignments[index]?.stack == 0 // 콜했거나 올인
+            playerContribution >= currentBet.value || seatAssignments[index]?.stack == 0 // Called or All-in
         }
 
-        // 마지막 베팅/레이즈 플레이어에게 액션이 돌아왔는지 확인
+        // And the action must have returned to the last person who bet/raised
         val actionReturnedToLastBetter = if (lastBetterIndex.value != null) {
             activePlayerIndex.value == lastBetterIndex.value
         } else {
-            true // 베팅이 없었으면 항상 true
+            true // If no one bet, this condition is always true
         }
 
         return allCalledOrFolded && actionReturnedToLastBetter
