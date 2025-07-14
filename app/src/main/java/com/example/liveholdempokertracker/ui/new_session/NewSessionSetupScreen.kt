@@ -36,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.liveholdempokertracker.ui.session.SessionViewModel
+import com.example.liveholdempokertracker.ui.session.Player
 
 @Composable
 fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewModel) {
@@ -136,7 +137,7 @@ fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewMo
                             selectedSeatIndex = index
                             showProfileDialog = true
                         }) {
-                            Text(seatAssignments.getOrDefault(index, "프로필 할당"))
+                            Text(seatAssignments.getOrDefault(index, Player(name = "프로필 할당")).name)
                         }
                     }
                 }
