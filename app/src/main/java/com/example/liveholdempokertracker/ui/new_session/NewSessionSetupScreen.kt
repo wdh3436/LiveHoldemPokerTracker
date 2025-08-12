@@ -148,7 +148,13 @@ fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewMo
 
 
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { navController.navigate("current_session") }, enabled = seatCountInt > 0) {
+        Button(
+            onClick = {
+                viewModel.startGame()
+                navController.navigate("current_session")
+            },
+            enabled = seatCountInt > 0
+        ) {
             Text("세션 시작")
         }
     }

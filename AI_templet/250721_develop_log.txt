@@ -1,3 +1,174 @@
+오늘까지의 진행 상황 요약 (250721):
+
+*   **베팅 알고리즘 재구현:** 사용자가 새로 기획한 베팅 알고리즘에 맞춰 `SessionViewModel`의 관련 로직을 전면 재작성했습니다.
+    *   `handleAction`, `moveToNextPlayer`, `endBettingRound` 등 핵심 함수들을 새로 구현했습니다.
+    *   딜러 위치를 기반으로 SB, BB, 그리고 프리플랍 첫 액션 순서를 자동으로 결정하는 `startGame` 함수를 구현했습니다.
+    *   라운드 종료 조건을 명확히 하여, 액션 순서가 남아있음에도 다음 페이즈로 넘어가는 문제를 해결했습니다.
+*   **UI 연동 및 오류 수정:**
+    *   `CurrentSessionScreen`에서 변경된 ViewModel 로직(`handleAction`)을 호출하도록 수정했습니다.
+    *   `Player` 데이터 클래스 변경에 따른 UI(isDealer, isSmallBlind 등) 관련 오류들을 모두 수정했습니다.
+*   **`startGame` 함수 호출 누락 오류 수정:** "세션 시작" 버튼을 눌렀을 때 `startGame` 함수가 호출되지 않아 턴 순서가 꼬이던 근본적인 원인을 찾아 해결했습니다.
+
+**다음 개발을 위해 기억할 내용:**
+
+*   현재 베팅 알고리즘은 "콜만 했을 때" 정상적으로 다음 라운드로 넘어가는 기본 흐름만 구현된 상태입니다. 베팅과 레이즈가 복합적으로 발생했을 때의 세밀한 룰은 아직 완벽하지 않을 수 있습니다.
+*   다음 단계는 기획서에 따라 플레이어의 액션을 기록하고 통계를 내는 HUD(Heads-Up Display) 기능을 구현하는 것입니다.
+
+--- SessionViewModel.kt ---
+package com.example.liveholdempokertracker.ui.session
+
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.Color
+import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
+data class Player(
+    val name: String,
+    val stack: Int = 0,
+    val isDealer: Boolean = false,
+    val lastAction: String = "", // 예: "폴드", "체크", "콜", "베팅", "레이즈"
+    val holeCards: List<String> = emptyList() // 플레이어의 홀덤 패
+)
+
+@HiltViewModel
+class SessionViewModel @Inject constructor() : ViewModel() {
+    var seatCount = mutableStateOf("")
+    val colors = listOf(Color.Red, Color.Green, Color.Blue, Color.Yellow, Color.Cyan, Color.Magenta)
+    var selectedColor = mutableStateOf(colors.first())
+    val seatAssignments = mutableStateMapOf<Int, Player>()
+    val communityCards = mutableStateListOf<String>()
+    var gamePhase = mutableStateOf("Pre-Flop")
+    var activePlayerIndex = mutableStateOf(0)
+    var lastRaiserIndex = mutableStateOf<Int?>(null) // 마지막으로 베팅/레이즈한 플레이어
+
+    fun assignProfile(seatIndex: Int, profileName: String) {
+        val tempHoleCards = listOf("A", "K")
+        seatAssignments[seatIndex] = Player(name = profileName, holeCards = tempHoleCards)
+    }
+
+    fun clearSetup() {
+        seatCount.value = ""
+        selectedColor.value = colors.first()
+        seatAssignments.clear()
+        communityCards.clear()
+        gamePhase.value = "Pre-Flop"
+        activePlayerIndex.value = 0
+    }
+
+    fun nextPhase() {
+        gamePhase.value = when (gamePhase.value) {
+            "Pre-Flop" -> {
+                addFlopCards()
+                "Flop"
+            }
+            "Flop" -> {
+                addTurnCard()
+                "Turn"
+            }
+            "Turn" -> {
+                addRiverCard()
+                "River"
+            }
+            "River" -> "Showdown"
+            else -> "Pre-Flop"
+        }
+    }
+
+    fun addFlopCards() {
+        communityCards.addAll(listOf("A♠", "K♥", "Q♣"))
+    }
+
+    fun addTurnCard() {
+        communityCards.add("J♦")
+    }
+
+    fun addRiverCard() {
+        communityCards.add("10♠")
+    }
+
+    fun startGame() {
+        val seatCount = seatAssignments.size
+        if (seatCount == 0) return
+
+        // User request: Fix dealer to seat 1 (index 0)
+        val dealerIndex = 0
+        seatAssignments[dealerIndex] = seatAssignments[dealerIndex]!!.copy(isDealer = true)
+
+        // Set SB and BB based on the dealer
+        val sbIndex = (dealerIndex + 1) % seatCount
+        val bbIndex = (dealerIndex + 2) % seatCount
+
+        seatAssignments[sbIndex] = seatAssignments[sbIndex]!!.copy(lastAction = "SB")
+        seatAssignments[bbIndex] = seatAssignments[bbIndex]!!.copy(lastAction = "BB")
+
+        // The last raiser is the BB before the flop
+        lastRaiserIndex.value = bbIndex
+
+        // Pre-flop action starts to the left of the BB (UTG)
+        val utgIndex = (bbIndex + 1) % seatCount
+        activePlayerIndex.value = utgIndex
+    }
+
+    fun handleAction(playerIndex: Int, action: String) {
+        val player = seatAssignments[playerIndex]
+        if (player == null || player.lastAction == "폴드" || playerIndex != activePlayerIndex.value) return
+
+        seatAssignments[playerIndex] = player.copy(lastAction = action)
+
+        val isRaise = (action == "베팅" || action == "레이즈")
+        if (isRaise) {
+            lastRaiserIndex.value = playerIndex
+        }
+
+        // Check if the action has returned to the last raiser and they didn't raise again.
+        val roundEnded = (playerIndex == lastRaiserIndex.value && !isRaise)
+
+        if (roundEnded) {
+            endBettingRound()
+        } else {
+            moveToNextPlayer(startFrom = playerIndex)
+        }
+    }
+
+    private fun moveToNextPlayer(startFrom: Int) {
+        val seatCount = seatAssignments.size
+        if (seatCount == 0) return
+
+        var nextIndex = startFrom
+        do {
+            nextIndex = (nextIndex + 1) % seatCount
+        } while (seatAssignments[nextIndex]?.lastAction == "폴드")
+        activePlayerIndex.value = nextIndex
+    }
+
+    private fun endBettingRound() {
+        val activePlayers = seatAssignments.values.count { it.lastAction != "폴드" }
+        if (activePlayers <= 1) {
+            // End of game - handle winner
+        } else {
+            nextPhase()
+            resetForNewRound()
+        }
+    }
+
+    private fun resetForNewRound() {
+        val dealerIndex = seatAssignments.entries.find { it.value.isDealer }?.key ?: 0
+        lastRaiserIndex.value = null // Reset for the new round
+
+        // Find the first active player to the left of the dealer
+        var firstToAct = (dealerIndex + 1) % seatAssignments.size
+        while(seatAssignments[firstToAct]?.lastAction == "폴드") {
+            firstToAct = (firstToAct + 1) % seatAssignments.size
+        }
+        activePlayerIndex.value = firstToAct
+        lastRaiserIndex.value = firstToAct // In post-flop, the first player to act is the initial "last raiser"
+    }
+}
+
+--- CurrentSessionScreen.kt ---
 package com.example.liveholdempokertracker.ui.session
 
 import androidx.compose.foundation.background

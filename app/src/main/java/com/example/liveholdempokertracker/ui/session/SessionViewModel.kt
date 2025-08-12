@@ -12,8 +12,6 @@ data class Player(
     val name: String,
     val stack: Int = 0,
     val isDealer: Boolean = false,
-    val isSmallBlind: Boolean = false,
-    val isBigBlind: Boolean = false,
     val lastAction: String = "", // 예: "폴드", "체크", "콜", "베팅", "레이즈"
     val holeCards: List<String> = emptyList() // 플레이어의 홀덤 패
 )
@@ -24,20 +22,14 @@ class SessionViewModel @Inject constructor() : ViewModel() {
     val colors = listOf(Color.Red, Color.Green, Color.Blue, Color.Yellow, Color.Cyan, Color.Magenta)
     var selectedColor = mutableStateOf(colors.first())
     val seatAssignments = mutableStateMapOf<Int, Player>()
-    val communityCards = mutableStateListOf<String>() // 커뮤니티 카드
-    var gamePhase = mutableStateOf("Pre-Flop") // 초기 게임 단계
-    var activePlayerIndex = mutableStateOf(0) // 현재 액션을 취할 플레이어의 인덱스
-    val playerActionStatus = mutableStateMapOf<Int, Boolean>() // 각 플레이어의 현재 단계 액션 완료 여부
-    var currentBet = mutableStateOf(0) // 현재 라운드의 최고 베팅 금액
-    val playerContributions = mutableStateMapOf<Int, Int>() // 각 플레이어가 현재 라운드에 기여한 금액
-    var lastBetterIndex = mutableStateOf<Int?>(null) // 마지막으로 베팅/레이즈를 한 플레이어의 인덱스
+    val communityCards = mutableStateListOf<String>()
+    var gamePhase = mutableStateOf("Pre-Flop")
+    var activePlayerIndex = mutableStateOf(0)
+    var lastRaiserIndex = mutableStateOf<Int?>(null) // 마지막으로 베팅/레이즈한 플레이어
 
     fun assignProfile(seatIndex: Int, profileName: String) {
-        // 임시로 홀덤 패 할당 (실제로는 카드 덱에서 가져와야 함)
-        val tempHoleCards = listOf("A", "K") // 임시 카드
+        val tempHoleCards = listOf("A", "K")
         seatAssignments[seatIndex] = Player(name = profileName, holeCards = tempHoleCards)
-        playerActionStatus[seatIndex] = false // 초기화
-        playerContributions[seatIndex] = 0 // 초기화
     }
 
     fun clearSetup() {
@@ -47,8 +39,6 @@ class SessionViewModel @Inject constructor() : ViewModel() {
         communityCards.clear()
         gamePhase.value = "Pre-Flop"
         activePlayerIndex.value = 0
-        playerActionStatus.clear()
-        resetBettingRound()
     }
 
     fun nextPhase() {
@@ -68,99 +58,6 @@ class SessionViewModel @Inject constructor() : ViewModel() {
             "River" -> "Showdown"
             else -> "Pre-Flop"
         }
-        resetPlayerActionStatus()
-        resetBettingRound()
-    }
-
-    fun moveToNextPlayer() {
-        val currentSeatCount = seatCount.value.toIntOrNull() ?: 0
-        if (currentSeatCount == 0) return
-
-        var nextIndex = activePlayerIndex.value
-        var playersChecked = 0
-
-        do {
-            nextIndex = (nextIndex + 1) % currentSeatCount
-            playersChecked++
-            val player = seatAssignments[nextIndex]
-            // 폴드하지 않았고, 아직 액션을 취하지 않은 플레이어를 찾거나, 모든 플레이어를 확인했을 경우 중단
-        } while ((player?.lastAction == "폴드" || playerActionStatus[nextIndex] == true) && playersChecked < currentSeatCount)
-
-        activePlayerIndex.value = nextIndex
-    }
-
-    fun updatePlayerAction(seatIndex: Int, action: String, amount: Int = 0) {
-        val currentPlayer = seatAssignments[seatIndex]
-        if (currentPlayer != null) {
-            seatAssignments[seatIndex] = currentPlayer.copy(lastAction = action)
-            playerActionStatus[seatIndex] = true // 액션 완료 상태 업데이트
-
-            when (action) {
-                "폴드" -> {
-                    // 폴드 시 특별한 베팅 관련 처리 없음
-                }
-                "체크/콜" -> {
-                    // 현재 베팅 금액만큼 기여
-                    playerContributions[seatIndex] = currentBet.value
-                }
-                "베팅/레이즈" -> {
-                    // 새로운 베팅 금액 설정
-                    currentBet.value = amount
-                    playerContributions[seatIndex] = amount
-                    lastBetterIndex.value = seatIndex // 마지막 베팅/레이즈 플레이어 설정
-                    // 다른 모든 플레이어의 액션 상태 초기화 (새로운 베팅에 응답해야 하므로)
-                    playerActionStatus.keys.forEach { index ->
-                        if (index != seatIndex && seatAssignments[index]?.lastAction != "폴드") {
-                            playerActionStatus[index] = false
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    fun resetPlayerActionStatus() {
-        seatAssignments.keys.forEach { index ->
-            playerActionStatus[index] = false
-        }
-    }
-
-    fun areAllActivePlayersDone(): Boolean {
-        val currentSeatCount = seatCount.value.toIntOrNull() ?: 0
-        if (currentSeatCount == 0) return true
-
-        val activePlayers = (0 until currentSeatCount).filter { index ->
-            seatAssignments[index]?.lastAction != "폴드"
-        }
-
-        if (activePlayers.isEmpty()) return true // 모든 플레이어가 폴드한 경우
-
-        // Check if all active players have taken an action in the current betting round
-        val allPlayersActedInCurrentRound = activePlayers.all { index ->
-            playerActionStatus[index] == true
-        }
-
-        if (!allPlayersActedInCurrentRound) return false // Not all players have acted yet
-
-        // If there's no current bet, and all players have acted, the round is done (all checked)
-        if (currentBet.value == 0) {
-            return true
-        }
-
-        // If there's a current bet, check if all active players have called/raised/folded to it
-        val allCalledOrFolded = activePlayers.all { index ->
-            val playerContribution = playerContributions.getOrDefault(index, 0)
-            playerContribution >= currentBet.value || seatAssignments[index]?.stack == 0 // Called or All-in
-        }
-
-        // And the action must have returned to the last person who bet/raised
-        val actionReturnedToLastBetter = if (lastBetterIndex.value != null) {
-            activePlayerIndex.value == lastBetterIndex.value
-        } else {
-            true // If no one bet, this condition is always true
-        }
-
-        return allCalledOrFolded && actionReturnedToLastBetter
     }
 
     fun addFlopCards() {
@@ -175,11 +72,81 @@ class SessionViewModel @Inject constructor() : ViewModel() {
         communityCards.add("10♠")
     }
 
-    private fun resetBettingRound() {
-        currentBet.value = 0
-        playerContributions.keys.forEach { index ->
-            playerContributions[index] = 0
+    fun startGame() {
+        val seatCount = seatAssignments.size
+        if (seatCount == 0) return
+
+        // User request: Fix dealer to seat 1 (index 0)
+        val dealerIndex = 0
+        seatAssignments[dealerIndex] = seatAssignments[dealerIndex]!!.copy(isDealer = true)
+
+        // Set SB and BB based on the dealer
+        val sbIndex = (dealerIndex + 1) % seatCount
+        val bbIndex = (dealerIndex + 2) % seatCount
+
+        seatAssignments[sbIndex] = seatAssignments[sbIndex]!!.copy(lastAction = "SB")
+        seatAssignments[bbIndex] = seatAssignments[bbIndex]!!.copy(lastAction = "BB")
+
+        // The last raiser is the BB before the flop
+        lastRaiserIndex.value = bbIndex
+
+        // Pre-flop action starts to the left of the BB (UTG)
+        val utgIndex = (bbIndex + 1) % seatCount
+        activePlayerIndex.value = utgIndex
+    }
+
+    fun handleAction(playerIndex: Int, action: String) {
+        val player = seatAssignments[playerIndex]
+        if (player == null || player.lastAction == "폴드" || playerIndex != activePlayerIndex.value) return
+
+        seatAssignments[playerIndex] = player.copy(lastAction = action)
+
+        val isRaise = (action == "베팅" || action == "레이즈")
+        if (isRaise) {
+            lastRaiserIndex.value = playerIndex
         }
-        lastBetterIndex.value = null // 마지막 베팅/레이즈 플레이어 초기화
+
+        // Check if the action has returned to the last raiser and they didn't raise again.
+        val roundEnded = (playerIndex == lastRaiserIndex.value && !isRaise)
+
+        if (roundEnded) {
+            endBettingRound()
+        } else {
+            moveToNextPlayer(startFrom = playerIndex)
+        }
+    }
+
+    private fun moveToNextPlayer(startFrom: Int) {
+        val seatCount = seatAssignments.size
+        if (seatCount == 0) return
+
+        var nextIndex = startFrom
+        do {
+            nextIndex = (nextIndex + 1) % seatCount
+        } while (seatAssignments[nextIndex]?.lastAction == "폴드")
+        activePlayerIndex.value = nextIndex
+    }
+
+    private fun endBettingRound() {
+        val activePlayers = seatAssignments.values.count { it.lastAction != "폴드" }
+        if (activePlayers <= 1) {
+            // End of game - handle winner
+        } else {
+            nextPhase()
+            resetForNewRound()
+        }
+    }
+
+    private fun resetForNewRound() {
+        val dealerIndex = seatAssignments.entries.find { it.value.isDealer }?.key ?: 0
+        lastRaiserIndex.value = null // Reset for the new round
+
+        // Find the first active player to the left of the dealer
+        var firstToAct = (dealerIndex + 1) % seatAssignments.size
+        while(seatAssignments[firstToAct]?.lastAction == "폴드") {
+            firstToAct = (firstToAct + 1) % seatAssignments.size
+        }
+        activePlayerIndex.value = firstToAct
+        lastRaiserIndex.value = firstToAct // In post-flop, the first player to act is the initial "last raiser"
     }
 }
