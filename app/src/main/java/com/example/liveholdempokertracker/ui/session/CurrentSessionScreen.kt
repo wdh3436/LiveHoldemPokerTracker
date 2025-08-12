@@ -82,8 +82,15 @@ fun CurrentSessionScreen(viewModel: SessionViewModel) {
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = { viewModel.nextPhase() }) {
-                Text("다음 단계")
+            // 게임 단계에 따라 버튼을 다르게 표시
+            if (gamePhase == "Showdown") {
+                Button(onClick = { viewModel.newHand() }) {
+                    Text("새 핸드 시작")
+                }
+            } else {
+                Button(onClick = { viewModel.nextPhase() }) {
+                    Text("다음 단계")
+                }
             }
         }
 
@@ -127,6 +134,10 @@ fun PlayerSeat(
     isSmallBlind: Boolean,
     isBigBlind: Boolean
 ) {
+    // --- HUD 통계 계산 ---
+    val vpip = if (player.handsPlayed > 0) (player.vpipActionCount * 100) / player.handsPlayed else 0
+    val pfr = if (player.handsPlayed > 0) (player.pfrActionCount * 100) / player.handsPlayed else 0
+
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         // 플레이어 카드
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -138,7 +149,7 @@ fun PlayerSeat(
 
         Box(
             modifier = Modifier
-                .size(80.dp)
+                .size(100.dp) // HUD 표시를 위해 박스 크기 증가
                 .background(Color.DarkGray) // 플레이어 아바타/프로필 이미지 Placeholder
                 .border(
                     width = if (isActive) 4.dp else 1.dp,
@@ -148,12 +159,16 @@ fun PlayerSeat(
                 .padding(4.dp),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(player.name, color = Color.White)
-                Text("스택: ${player.stack}", color = Color.White, fontSize = 12.sp)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                Text(player.name, color = Color.White, fontSize = 12.sp)
+                Text("스택: ${player.stack}", color = Color.White, fontSize = 10.sp)
                 if (player.lastAction.isNotEmpty()) {
                     Text("(${player.lastAction})", color = Color.White, fontSize = 10.sp)
                 }
+                Spacer(modifier = Modifier.height(4.dp))
+                // --- HUD 통계 표시 ---
+                Text("VPIP: $vpip%", color = Color.White, fontSize = 10.sp)
+                Text("PFR: $pfr%", color = Color.White, fontSize = 10.sp)
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
