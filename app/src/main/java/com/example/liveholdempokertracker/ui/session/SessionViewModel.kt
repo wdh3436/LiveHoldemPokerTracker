@@ -34,6 +34,7 @@ class SessionViewModel @Inject constructor() : ViewModel() {
     // 현재 핸드에서 VPIP/PFR 액션을 한 플레이어를 추적
     private val vpipPlayersThisHand = mutableSetOf<Int>()
     private val pfrPlayersThisHand = mutableSetOf<Int>()
+    private var isPreFlopBbOption = true // 프리플랍에서 BB 옵션을 확인하기 위한 플래그
 
     fun assignProfile(seatIndex: Int, profileName: String) {
         val tempHoleCards = listOf("A", "K")
@@ -52,6 +53,7 @@ class SessionViewModel @Inject constructor() : ViewModel() {
     }
 
     fun nextPhase() {
+        isPreFlopBbOption = false // 프리플랍 단계가 끝나면 플래그를 비활성화
         gamePhase.value = when (gamePhase.value) {
             "Pre-Flop" -> {
                 addFlopCards()
@@ -122,6 +124,7 @@ class SessionViewModel @Inject constructor() : ViewModel() {
     }
 
     fun startGame(dealerIndex: Int) {
+        isPreFlopBbOption = true // 새 핸드는 항상 프리플랍이므로 플래그를 활성화
         // Reset hand-specific trackers
         vpipPlayersThisHand.clear()
         pfrPlayersThisHand.clear()
@@ -180,36 +183,41 @@ class SessionViewModel @Inject constructor() : ViewModel() {
         }
         // --- HUD 통계 계산 로직 끝 ---
 
-        // 액션 적용
         seatAssignments[playerIndex] = player.copy(lastAction = action)
 
-        // 베팅/레이즈가 나오면 마지막 레이저를 업데이트
         val isRaise = action == "베팅/레이즈"
         if (isRaise) {
             lastRaiserIndex.value = playerIndex
+            isPreFlopBbOption = false // 레이즈가 나오면 BB 옵션은 더이상 유효하지 않음
         }
 
-        // 다음 플레이어로 순서 이동 (라운드 종료 로직은 moveToNextPlayer로 이동)
-        moveToNextPlayer(startFrom = playerIndex)
+        // 라운드 종료 조건 확인
+        // 1. 현재 액션을 한 플레이어가 마지막 레이저이고, 레이즈를 하지 않은 경우
+        // 2. 단, 프리플랍에서 BB 옵션이 아직 유효한 경우 (BB가 체크/콜하는 경우)는 제외
+        if (playerIndex == lastRaiserIndex.value && !isRaise) {
+            if (gamePhase.value == "Pre-Flop" && isPreFlopBbOption) {
+                // BB가 체크/콜하는 경우, BB 옵션을 사용했으므로 플래그를 끄고 다음 플레이어로 넘어감
+                isPreFlopBbOption = false
+                moveToNextPlayer(startFrom = playerIndex)
+            } else {
+                // 그 외의 경우 (BB 옵션이 없거나, 플랍 이후 라운드) 라운드 종료
+                endBettingRound()
+            }
+        } else {
+            // 라운드 종료 조건이 아니면 다음 플레이어로 넘어감
+            moveToNextPlayer(startFrom = playerIndex)
+        }
     }
 
     private fun moveToNextPlayer(startFrom: Int) {
-        val seatCount = seatAssignments.size
-        if (seatCount < 2) {
-            endBettingRound()
-            return
-        }
-
-        // 다음 액션 플레이어 찾기
+        // 다음 액션 플레이어 찾기 (폴드한 사람 건너뛰기)
         var nextIndex = startFrom
         do {
-            nextIndex = (nextIndex + 1) % seatCount
-        } while (seatAssignments[nextIndex]?.lastAction == "폴드")
-
-        // 다음 플레이어가 마지막 레이저와 같으면 라운드 종료
-        // 또는 액티브 플레이어가 1명 이하면 라운드 종료
-        val activePlayers = seatAssignments.values.count { it.lastAction != "폴드" }
-        if (nextIndex == lastRaiserIndex.value || activePlayers < 2) {
+            nextIndex = (nextIndex + 1) % seatAssignments.size
+        } while (seatAssignments[nextIndex]?.lastAction == "폴드" || seatAssignments[nextIndex] == null)
+        
+        // 다음 플레이어가 마지막 레이저와 동일하면 라운드 종료
+        if (nextIndex == lastRaiserIndex.value) {
             endBettingRound()
         } else {
             activePlayerIndex.value = nextIndex

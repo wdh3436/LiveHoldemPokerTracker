@@ -1,0 +1,25 @@
+250812_develop_log.txt
+
+오늘까지의 진행 상황 요약 (250812):
+
+*   **HUD 기능 구현:**
+    *   `Player` 데이터 클래스에 VPIP, PFR 통계 필드(`handsPlayed`, `vpipActionCount`, `pfrActionCount`) 추가.
+    *   `SessionViewModel`의 `startGame` 및 `handleAction` 함수에 HUD 통계 계산 로직 추가.
+    *   `CurrentSessionScreen`의 `PlayerSeat` 컴포저블에 VPIP, PFR 통계 표시 UI 추가.
+*   **게임 흐름 개선 (핸드 종료 및 새 핸드 시작):**
+    *   `SessionViewModel`에 `newHand()` 및 `startFirstGame()` 함수 추가.
+    *   `startGame()` 함수를 수정하여 딜러 위치를 인자로 받아 게임 시작.
+    *   `endBettingRound()` 함수가 게임 종료 시 `gamePhase`를 "Showdown"으로 설정하도록 수정.
+    *   `CurrentSessionScreen`에 '새 핸드 시작' 버튼 추가 및 `newHand()` 함수와 연동.
+*   **버그 수정 시도 (프리플랍 BB 옵션):**
+    *   프리플랍에서 BB가 콜만 했을 때 액션 권리를 보장하기 위한 로직 수정 시도.
+    *   `isPreFlopBbOption` 플래그를 사용한 여러 차례의 수정 및 롤백.
+    *   현재 BB 옵션 버그는 **미해결 상태**로 남아있음.
+
+**알려진 문제:**
+
+*   프리플랍에서 모든 플레이어가 콜만 했을 경우, BB에게 액션 권리가 주어지지 않고 바로 다음 라운드(플랍)로 넘어가는 문제.
+
+**다음 개발을 위해 기억할 내용:**
+
+*   프리플랍 BB 옵션 버그 재검토 및 해결.
