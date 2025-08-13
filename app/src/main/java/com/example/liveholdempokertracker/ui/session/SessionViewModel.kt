@@ -185,6 +185,15 @@ class SessionViewModel @Inject constructor() : ViewModel() {
 
         seatAssignments[playerIndex] = player.copy(lastAction = action)
 
+        // 폴드 액션 처리: 남은 플레이어가 1명 이하면 즉시 핸드 종료
+        if (action == "폴드") {
+            val activePlayers = seatAssignments.values.count { it.lastAction != "폴드" }
+            if (activePlayers <= 1) {
+                gamePhase.value = "Showdown"
+                return // 핸드가 종료되었으므로 더 이상 진행하지 않음
+            }
+        }
+
         val isRaise = action == "베팅/레이즈"
         if (isRaise) {
             lastRaiserIndex.value = playerIndex
