@@ -30,6 +30,7 @@ class SessionViewModel @Inject constructor() : ViewModel() {
     var gamePhase = mutableStateOf("Pre-Flop")
     var activePlayerIndex = mutableStateOf(0)
     var lastRaiserIndex = mutableStateOf<Int?>(null) // 마지막으로 베팅/레이즈한 플레이어
+    var isBetMadeThisRound = mutableStateOf(false) // 현재 라운드에 베팅이 있었는지 여부
 
     // 현재 핸드에서 VPIP/PFR 액션을 한 플레이어를 추적
     private val vpipPlayersThisHand = mutableSetOf<Int>()
@@ -162,6 +163,7 @@ class SessionViewModel @Inject constructor() : ViewModel() {
         val utgListIndex = (dealerListIndex + 3) % assignedSeats.size
         val utgIndex = assignedSeats[utgListIndex]
         activePlayerIndex.value = utgIndex
+        isBetMadeThisRound.value = true // 프리플랍에서는 블라인드 베팅이 있으므로 항상 true
     }
 
     fun handleAction(playerIndex: Int, action: String) {
@@ -198,6 +200,7 @@ class SessionViewModel @Inject constructor() : ViewModel() {
         if (isRaise) {
             lastRaiserIndex.value = playerIndex
             isPreFlopBbOption = false // 레이즈가 나오면 BB 옵션은 더이상 유효하지 않음
+            isBetMadeThisRound.value = true
         }
 
         // 프리플랍에서 BB가 옵션을 행사하여 체크하는 경우, 즉시 라운드를 종료.
@@ -243,6 +246,7 @@ class SessionViewModel @Inject constructor() : ViewModel() {
     }
 
     private fun resetForNewRound() {
+        isBetMadeThisRound.value = false // 새 라운드에서는 베팅이 리셋됨
         val dealerIndex = seatAssignments.entries.find { it.value.isDealer }?.key ?: 0
         lastRaiserIndex.value = null // Reset for the new round
 

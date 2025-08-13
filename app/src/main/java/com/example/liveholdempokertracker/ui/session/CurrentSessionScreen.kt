@@ -96,6 +96,8 @@ fun CurrentSessionScreen(viewModel: SessionViewModel) {
 
         // 액션 버튼
         if (gamePhase != "Showdown") {
+            val isBetMade by viewModel.isBetMadeThisRound
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -110,17 +112,35 @@ fun CurrentSessionScreen(viewModel: SessionViewModel) {
                 }) {
                     Text("폴드")
                 }
-                Button(onClick = {
-                    viewModel.handleAction(viewModel.activePlayerIndex.value, "체크/콜")
-                    Toast.makeText(context, "체크/콜 액션", Toast.LENGTH_SHORT).show()
-                }) {
-                    Text("체크/콜")
-                }
-                Button(onClick = {
-                    viewModel.handleAction(viewModel.activePlayerIndex.value, "베팅/레이즈")
-                    Toast.makeText(context, "베팅/레이즈 액션", Toast.LENGTH_SHORT).show()
-                }) {
-                    Text("베팅/레이즈")
+
+                if (isBetMade) {
+                    // 베팅이 나온 상황: 콜, 레이즈 버튼 표시
+                    Button(onClick = {
+                        viewModel.handleAction(viewModel.activePlayerIndex.value, "체크/콜")
+                        Toast.makeText(context, "콜 액션", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Text("콜")
+                    }
+                    Button(onClick = {
+                        viewModel.handleAction(viewModel.activePlayerIndex.value, "베팅/레이즈")
+                        Toast.makeText(context, "레이즈 액션", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Text("레이즈")
+                    }
+                } else {
+                    // 베팅이 없는 상황: 체크, 베팅 버튼 표시
+                    Button(onClick = {
+                        viewModel.handleAction(viewModel.activePlayerIndex.value, "체크/콜")
+                        Toast.makeText(context, "체크 액션", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Text("체크")
+                    }
+                    Button(onClick = {
+                        viewModel.handleAction(viewModel.activePlayerIndex.value, "베팅/레이즈")
+                        Toast.makeText(context, "베팅 액션", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Text("베팅")
+                    }
                 }
             }
         }
