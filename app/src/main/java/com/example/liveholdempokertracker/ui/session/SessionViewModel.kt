@@ -191,20 +191,12 @@ class SessionViewModel @Inject constructor() : ViewModel() {
             isPreFlopBbOption = false // 레이즈가 나오면 BB 옵션은 더이상 유효하지 않음
         }
 
-        // 라운드 종료 조건 확인
-        // 1. 현재 액션을 한 플레이어가 마지막 레이저이고, 레이즈를 하지 않은 경우
-        // 2. 단, 프리플랍에서 BB 옵션이 아직 유효한 경우 (BB가 체크/콜하는 경우)는 제외
-        if (playerIndex == lastRaiserIndex.value && !isRaise) {
-            if (gamePhase.value == "Pre-Flop" && isPreFlopBbOption) {
-                // BB가 체크/콜하는 경우, BB 옵션을 사용했으므로 플래그를 끄고 다음 플레이어로 넘어감
-                isPreFlopBbOption = false
-                moveToNextPlayer(startFrom = playerIndex)
-            } else {
-                // 그 외의 경우 (BB 옵션이 없거나, 플랍 이후 라운드) 라운드 종료
-                endBettingRound()
-            }
+        // 프리플랍에서 BB가 옵션을 행사하여 체크하는 경우, 즉시 라운드를 종료.
+        if (gamePhase.value == "Pre-Flop" && isPreFlopBbOption && playerIndex == lastRaiserIndex.value && !isRaise) {
+            endBettingRound()
         } else {
-            // 라운드 종료 조건이 아니면 다음 플레이어로 넘어감
+            // 그 외의 모든 경우는 다음 플레이어로 턴을 넘김.
+            // 라운드 종료 여부는 moveToNextPlayer 내부에서 처리.
             moveToNextPlayer(startFrom = playerIndex)
         }
     }
@@ -215,10 +207,17 @@ class SessionViewModel @Inject constructor() : ViewModel() {
         do {
             nextIndex = (nextIndex + 1) % seatAssignments.size
         } while (seatAssignments[nextIndex]?.lastAction == "폴드" || seatAssignments[nextIndex] == null)
-        
-        // 다음 플레이어가 마지막 레이저와 동일하면 라운드 종료
+
+        // 다음 플레이어가 마지막 레이저와 동일하면 라운드 종료 로직 검토
         if (nextIndex == lastRaiserIndex.value) {
-            endBettingRound()
+            // 단, 프리플랍에서 BB가 옵션을 행사해야 하는 경우는 제외
+            if (gamePhase.value == "Pre-Flop" && isPreFlopBbOption) {
+                // BB에게 액션 기회를 줌
+                activePlayerIndex.value = nextIndex
+            } else {
+                // 그 외 모든 경우, 액션이 마지막 레이저에게 돌아오면 라운드 종료
+                endBettingRound()
+            }
         } else {
             activePlayerIndex.value = nextIndex
         }
