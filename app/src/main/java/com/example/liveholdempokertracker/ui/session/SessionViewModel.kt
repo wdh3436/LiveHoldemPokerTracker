@@ -10,7 +10,7 @@ import javax.inject.Inject
 
 data class Player(
     val name: String,
-    val stack: Int = 0,
+    
     val isDealer: Boolean = false,
     val lastAction: String = "", // 예: "폴드", "체크", "콜", "베팅", "레이즈"
     val holeCards: List<String> = emptyList(), // 플레이어의 홀덤 패

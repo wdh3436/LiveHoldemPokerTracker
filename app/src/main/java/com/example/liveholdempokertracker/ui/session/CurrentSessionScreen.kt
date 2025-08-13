@@ -95,31 +95,33 @@ fun CurrentSessionScreen(viewModel: SessionViewModel) {
         }
 
         // 액션 버튼
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp), // 버튼이 화면 하단에 위치하도록 조정
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Button(onClick = {
-                viewModel.handleAction(viewModel.activePlayerIndex.value, "폴드")
-                Toast.makeText(context, "폴드 액션", Toast.LENGTH_SHORT).show()
-            }) {
-                Text("폴드")
-            }
-            Button(onClick = {
-                viewModel.handleAction(viewModel.activePlayerIndex.value, "체크/콜")
-                Toast.makeText(context, "체크/콜 액션", Toast.LENGTH_SHORT).show()
-            }) {
-                Text("체크/콜")
-            }
-            Button(onClick = {
-                viewModel.handleAction(viewModel.activePlayerIndex.value, "베팅/레이즈")
-                Toast.makeText(context, "베팅/레이즈 액션", Toast.LENGTH_SHORT).show()
-            }) {
-                Text("베팅/레이즈")
+        if (gamePhase != "Showdown") {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp), // 버튼이 화면 하단에 위치하도록 조정
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(onClick = {
+                    viewModel.handleAction(viewModel.activePlayerIndex.value, "폴드")
+                    Toast.makeText(context, "폴드 액션", Toast.LENGTH_SHORT).show()
+                }) {
+                    Text("폴드")
+                }
+                Button(onClick = {
+                    viewModel.handleAction(viewModel.activePlayerIndex.value, "체크/콜")
+                    Toast.makeText(context, "체크/콜 액션", Toast.LENGTH_SHORT).show()
+                }) {
+                    Text("체크/콜")
+                }
+                Button(onClick = {
+                    viewModel.handleAction(viewModel.activePlayerIndex.value, "베팅/레이즈")
+                    Toast.makeText(context, "베팅/레이즈 액션", Toast.LENGTH_SHORT).show()
+                }) {
+                    Text("베팅/레이즈")
+                }
             }
         }
     }
@@ -161,7 +163,7 @@ fun PlayerSeat(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Text(player.name, color = Color.White, fontSize = 12.sp)
-                Text("스택: ${player.stack}", color = Color.White, fontSize = 10.sp)
+                
                 if (player.lastAction.isNotEmpty()) {
                     Text("(${player.lastAction})", color = Color.White, fontSize = 10.sp)
                 }
