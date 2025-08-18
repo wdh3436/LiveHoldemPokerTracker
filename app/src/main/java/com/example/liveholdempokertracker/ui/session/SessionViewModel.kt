@@ -20,6 +20,19 @@ data class Player(
     val pfrActionCount: Int = 0  // Pre-Flop Raise
 )
 
+data class GameState(
+    val seatAssignments: Map<Int, Player>,
+    val communityCards: List<String>,
+    val gamePhase: String,
+    val activePlayerIndex: Int,
+    val lastRaiserIndex: Int?,
+    val isBetMadeThisRound: Boolean,
+    val canCheck: Boolean,
+    val isPreFlopBbOption: Boolean,
+    val vpipPlayersThisHand: Set<Int>,
+    val pfrPlayersThisHand: Set<Int>
+)
+
 @HiltViewModel
 class SessionViewModel @Inject constructor() : ViewModel() {
     var seatCount = mutableStateOf("")
@@ -32,11 +45,52 @@ class SessionViewModel @Inject constructor() : ViewModel() {
     var lastRaiserIndex = mutableStateOf<Int?>(null) // 마지막으로 베팅/레이즈한 플레이어
     var isBetMadeThisRound = mutableStateOf(false) // 현재 라운드에 베팅이 있었는지 여부
     val canCheck = mutableStateOf(false) // 현재 플레이어가 체크를 할 수 있는지 여부
+    val canUndo = mutableStateOf(false)
+
+    private val history = mutableListOf<GameState>()
 
     // 현재 핸드에서 VPIP/PFR 액션을 한 플레이어를 추적
     private val vpipPlayersThisHand = mutableSetOf<Int>()
     private val pfrPlayersThisHand = mutableSetOf<Int>()
     private var isPreFlopBbOption = true // 프리플랍에서 BB 옵션을 확인하기 위한 플래그
+
+    private fun captureState(): GameState {
+        return GameState(
+            seatAssignments = seatAssignments.toMap(), // Create a copy
+            communityCards = communityCards.toList(), // Create a copy
+            gamePhase = gamePhase.value,
+            activePlayerIndex = activePlayerIndex.value,
+            lastRaiserIndex = lastRaiserIndex.value,
+            isBetMadeThisRound = isBetMadeThisRound.value,
+            canCheck = canCheck.value,
+            isPreFlopBbOption = isPreFlopBbOption,
+            vpipPlayersThisHand = vpipPlayersThisHand.toSet(),
+            pfrPlayersThisHand = pfrPlayersThisHand.toSet()
+        )
+    }
+
+    fun undoLastAction() {
+        if (history.isEmpty()) return
+
+        val lastState = history.removeLast()
+        canUndo.value = history.isNotEmpty()
+
+        // Restore state
+        seatAssignments.clear()
+        seatAssignments.putAll(lastState.seatAssignments)
+        communityCards.clear()
+        communityCards.addAll(lastState.communityCards)
+        gamePhase.value = lastState.gamePhase
+        activePlayerIndex.value = lastState.activePlayerIndex
+        lastRaiserIndex.value = lastState.lastRaiserIndex
+        isBetMadeThisRound.value = lastState.isBetMadeThisRound
+        canCheck.value = lastState.canCheck
+        isPreFlopBbOption = lastState.isPreFlopBbOption
+        vpipPlayersThisHand.clear()
+        vpipPlayersThisHand.addAll(lastState.vpipPlayersThisHand)
+        pfrPlayersThisHand.clear()
+        pfrPlayersThisHand.addAll(lastState.pfrPlayersThisHand)
+    }
 
     fun assignProfile(seatIndex: Int, profileName: String) {
         val tempHoleCards = listOf("A", "K")
@@ -52,6 +106,8 @@ class SessionViewModel @Inject constructor() : ViewModel() {
         activePlayerIndex.value = 0
         vpipPlayersThisHand.clear()
         pfrPlayersThisHand.clear()
+        history.clear()
+        canUndo.value = false
         updateActionFlags()
     }
 
@@ -124,6 +180,9 @@ class SessionViewModel @Inject constructor() : ViewModel() {
 
         // 5. 새 핸드 시작
         startGame(nextDealerIndex)
+
+        history.clear() // ADDED BACK
+        canUndo.value = false // ADDED BACK
     }
 
     fun startGame(dealerIndex: Int) {
@@ -167,11 +226,15 @@ class SessionViewModel @Inject constructor() : ViewModel() {
         activePlayerIndex.value = utgIndex
         isBetMadeThisRound.value = true // 프리플랍에서는 블라인드 베팅이 있으므로 항상 true
         updateActionFlags()
+        // canUndo.value = history.isNotEmpty() // REMOVED
     }
 
     fun handleAction(playerIndex: Int, action: String) {
         var player = seatAssignments[playerIndex]
         if (player == null || player.lastAction == "폴드" || playerIndex != activePlayerIndex.value) return
+
+        history.add(captureState())
+        canUndo.value = true
 
         // --- HUD 통계 계산 로직 (변경 없음) ---
         if (gamePhase.value == "Pre-Flop") {
@@ -233,7 +296,8 @@ class SessionViewModel @Inject constructor() : ViewModel() {
                 // 그 외 모든 경우, 액션이 마지막 레이저에게 돌아오면 라운드 종료
                 endBettingRound()
             }
-        } else {
+        }
+        else {
             activePlayerIndex.value = nextIndex
         }
         updateActionFlags()

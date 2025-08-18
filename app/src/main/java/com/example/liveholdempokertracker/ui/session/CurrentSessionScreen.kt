@@ -4,7 +4,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -29,6 +33,7 @@ fun CurrentSessionScreen(viewModel: SessionViewModel) {
     val gamePhase by viewModel.gamePhase
     val context = LocalContext.current
     val canCheck by viewModel.canCheck
+    val canUndo by viewModel.canUndo
 
     Box(
         modifier = Modifier
@@ -36,6 +41,18 @@ fun CurrentSessionScreen(viewModel: SessionViewModel) {
             .background(selectedColor) // 테이블 색상 적용
             .padding(16.dp)
     ) {
+        IconButton(
+            onClick = { viewModel.undoLastAction() },
+            modifier = Modifier.align(Alignment.TopEnd)
+            // enabled = canUndo // REMOVED
+        ) {
+            Icon(
+                imageVector = Icons.Default.Undo,
+                contentDescription = "Undo Last Action",
+                tint = if (canUndo) Color.White else Color.Gray
+            )
+        }
+
         // 플레이어 좌석 배치 (최대 10명)
         // 기획서 15페이지를 참고하여 좌석 배치
         // 현재는 임시로 8개 좌석만 배치 (나머지는 필요에 따라 추가)

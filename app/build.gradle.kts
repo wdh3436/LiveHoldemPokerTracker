@@ -74,4 +74,7 @@ dependencies {
 
     // ViewModel
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
+
+    // Material Icons Extended
+    implementation(libs.androidx.material.icons.extended)
 }
