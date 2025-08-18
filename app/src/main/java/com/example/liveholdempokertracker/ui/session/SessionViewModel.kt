@@ -31,6 +31,7 @@ class SessionViewModel @Inject constructor() : ViewModel() {
     var activePlayerIndex = mutableStateOf(0)
     var lastRaiserIndex = mutableStateOf<Int?>(null) // 마지막으로 베팅/레이즈한 플레이어
     var isBetMadeThisRound = mutableStateOf(false) // 현재 라운드에 베팅이 있었는지 여부
+    val canCheck = mutableStateOf(false) // 현재 플레이어가 체크를 할 수 있는지 여부
 
     // 현재 핸드에서 VPIP/PFR 액션을 한 플레이어를 추적
     private val vpipPlayersThisHand = mutableSetOf<Int>()
@@ -51,6 +52,7 @@ class SessionViewModel @Inject constructor() : ViewModel() {
         activePlayerIndex.value = 0
         vpipPlayersThisHand.clear()
         pfrPlayersThisHand.clear()
+        updateActionFlags()
     }
 
     fun nextPhase() {
@@ -164,6 +166,7 @@ class SessionViewModel @Inject constructor() : ViewModel() {
         val utgIndex = assignedSeats[utgListIndex]
         activePlayerIndex.value = utgIndex
         isBetMadeThisRound.value = true // 프리플랍에서는 블라인드 베팅이 있으므로 항상 true
+        updateActionFlags()
     }
 
     fun handleAction(playerIndex: Int, action: String) {
@@ -233,6 +236,7 @@ class SessionViewModel @Inject constructor() : ViewModel() {
         } else {
             activePlayerIndex.value = nextIndex
         }
+        updateActionFlags()
     }
 
     private fun endBettingRound() {
@@ -243,6 +247,32 @@ class SessionViewModel @Inject constructor() : ViewModel() {
             nextPhase()
             resetForNewRound()
         }
+    }
+
+    private fun updateActionFlags() {
+        val assignedSeats = seatAssignments.keys.sorted()
+        if (assignedSeats.isEmpty()) {
+            canCheck.value = false
+            return
+        }
+
+        val dealerKey = seatAssignments.entries.find { it.value.isDealer }?.key ?: -1
+        val dealerListIndex = assignedSeats.indexOf(dealerKey)
+        if (dealerListIndex == -1) {
+            canCheck.value = false
+            return
+        }
+
+        val bbListIndex = (dealerListIndex + 2) % assignedSeats.size
+        val bbIndex = assignedSeats[bbListIndex]
+        val currentPlayerIsBB = activePlayerIndex.value == bbIndex
+
+        // The BB can check pre-flop if it's their option.
+        val bbCanCheckPreflop = gamePhase.value == "Pre-Flop" &&
+                                 currentPlayerIsBB &&
+                                 isPreFlopBbOption
+
+        canCheck.value = !isBetMadeThisRound.value || bbCanCheckPreflop
     }
 
     private fun resetForNewRound() {
@@ -257,5 +287,6 @@ class SessionViewModel @Inject constructor() : ViewModel() {
         }
         activePlayerIndex.value = firstToAct
         lastRaiserIndex.value = firstToAct // In post-flop, the first player to act is the initial "last raiser"
+        updateActionFlags()
     }
 }
