@@ -5,7 +5,13 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.liveholdempokertracker.data.PlayerProfile
+import com.example.liveholdempokertracker.data.PlayerProfileDao
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class Player(
@@ -34,7 +40,9 @@ data class GameState(
 )
 
 @HiltViewModel
-class SessionViewModel @Inject constructor() : ViewModel() {
+class SessionViewModel @Inject constructor(
+    private val playerProfileDao: PlayerProfileDao
+) : ViewModel() {
     var seatCount = mutableStateOf("")
     val colors = listOf(Color.Red, Color.Green, Color.Blue, Color.Yellow, Color.Cyan, Color.Magenta)
     var selectedColor = mutableStateOf(colors.first())
@@ -92,9 +100,36 @@ class SessionViewModel @Inject constructor() : ViewModel() {
         pfrPlayersThisHand.addAll(lastState.pfrPlayersThisHand)
     }
 
-    fun assignProfile(seatIndex: Int, profileName: String) {
-        val tempHoleCards = listOf("A", "K")
-        seatAssignments[seatIndex] = Player(name = profileName, holeCards = tempHoleCards)
+    fun assignProfile(seatIndex: Int, profile: PlayerProfile) {
+        val tempHoleCards = listOf("A", "K") // 임시 카드
+        seatAssignments[seatIndex] = Player(
+            name = profile.name,
+            holeCards = tempHoleCards,
+            handsPlayed = profile.handsPlayed,
+            vpipActionCount = profile.vpipActionCount,
+            pfrActionCount = profile.pfrActionCount
+        )
+    }
+
+    fun saveSessionData(onSessionSaved: () -> Unit) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                seatAssignments.values.forEach { player ->
+                    if (player.name != "GUEST") { // Do not save GUEST profiles
+                        val existingProfile = playerProfileDao.getProfileByName(player.name)
+                        val profileToSave = PlayerProfile(
+                            id = existingProfile?.id ?: 0, // Use existing id or 0 for new profile
+                            name = player.name,
+                            handsPlayed = player.handsPlayed,
+                            vpipActionCount = player.vpipActionCount,
+                            pfrActionCount = player.pfrActionCount
+                        )
+                        playerProfileDao.insertOrUpdate(profileToSave)
+                    }
+                }
+            }
+            onSessionSaved()
+        }
     }
 
     fun clearSetup() {

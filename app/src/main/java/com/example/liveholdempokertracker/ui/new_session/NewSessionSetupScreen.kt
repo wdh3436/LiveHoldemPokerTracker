@@ -53,7 +53,7 @@ fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewMo
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    viewModel.assignProfile(selectedSeatIndex, "GUEST")
+                                    viewModel.assignProfile(selectedSeatIndex, com.example.liveholdempokertracker.data.PlayerProfile(name = "GUEST"))
                                     showProfileDialog = false
                                 }
                                 .padding(16.dp)
@@ -66,7 +66,7 @@ fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewMo
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    viewModel.assignProfile(selectedSeatIndex, profile.name)
+                                    viewModel.assignProfile(selectedSeatIndex, profile)
                                     showProfileDialog = false
                                 }
                                 .padding(16.dp)

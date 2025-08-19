@@ -1,10 +1,14 @@
 package com.example.liveholdempokertracker.ui.session
 
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -15,17 +19,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.Dp
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.border
-import com.example.liveholdempokertracker.ui.session.SessionViewModel
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavController
+import com.example.liveholdempokertracker.ui.navigation.Screen
 
 @Composable
-fun CurrentSessionScreen(viewModel: SessionViewModel) {
+fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewModel) {
     val seatCount by viewModel.seatCount
     val selectedColor by viewModel.selectedColor
     val seatAssignments = viewModel.seatAssignments
@@ -42,9 +44,25 @@ fun CurrentSessionScreen(viewModel: SessionViewModel) {
             .padding(16.dp)
     ) {
         IconButton(
+            onClick = {
+                viewModel.saveSessionData {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Home.route) { inclusive = true }
+                    }
+                }
+            },
+            modifier = Modifier.align(Alignment.TopStart)
+        ) {
+            Icon(
+                imageVector = Icons.Default.ExitToApp,
+                contentDescription = "End Session and Save",
+                tint = Color.White
+            )
+        }
+
+        IconButton(
             onClick = { viewModel.undoLastAction() },
             modifier = Modifier.align(Alignment.TopEnd)
-            // enabled = canUndo // REMOVED
         ) {
             Icon(
                 imageVector = Icons.Default.Undo,
