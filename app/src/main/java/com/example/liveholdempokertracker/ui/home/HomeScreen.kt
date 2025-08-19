@@ -32,8 +32,8 @@ fun HomeScreen(navController: NavController) {
             Text("진행중인 세션")
         }
         Spacer(modifier = Modifier.height(16.dp))
-        Button(onClick = { navController.navigate("profile") }) {
-            Text("프로필 데이터")
+        Button(onClick = { navController.navigate("profile_list") }) {
+            Text("프로필 관리")
         }
         Spacer(modifier = Modifier.height(16.dp))
         Button(onClick = { navController.navigate("settings") }) {
