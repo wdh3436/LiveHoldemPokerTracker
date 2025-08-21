@@ -5,23 +5,47 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PlayerProfileDao {
 
+    // PlayerProfile specific queries
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertOrUpdate(profile: PlayerProfile): Long
+    suspend fun insertOrUpdateProfile(profile: PlayerProfile): Long
 
     @Delete
-    fun delete(profile: PlayerProfile): Int
+    suspend fun deleteProfile(profile: PlayerProfile): Int
 
     @Query("SELECT * FROM player_profiles WHERE name = :name")
-    fun getProfileByName(name: String): PlayerProfile?
+    suspend fun getProfileByName(name: String): PlayerProfile?
 
     @Query("SELECT * FROM player_profiles ORDER BY name ASC")
     fun getAllProfiles(): Flow<List<PlayerProfile>>
 
+    @Transaction
+    @Query("SELECT * FROM player_profiles ORDER BY name ASC")
+    fun getAllProfilesWithTags(): Flow<List<ProfileWithTags>>
+
+    @Transaction
     @Query("SELECT * FROM player_profiles WHERE id = :id")
-    fun getProfileById(id: Int): Flow<PlayerProfile?>
+    fun getProfileWithTags(id: Int): Flow<ProfileWithTags?>
+
+    // Tag specific queries
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertTag(tag: Tag): Long
+
+    @Delete
+    suspend fun deleteTag(tag: Tag): Int
+
+    @Query("SELECT * FROM tags ORDER BY tagName ASC")
+    fun getAllTags(): Flow<List<Tag>>
+
+    // Profile-Tag cross reference queries
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun addTagToProfile(crossRef: PlayerProfileTagCrossRef): Unit
+
+    @Delete
+    suspend fun removeTagFromProfile(crossRef: PlayerProfileTagCrossRef): Unit
 }

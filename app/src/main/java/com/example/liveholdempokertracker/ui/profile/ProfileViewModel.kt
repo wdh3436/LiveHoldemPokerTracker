@@ -1,10 +1,10 @@
 package com.example.liveholdempokertracker.ui.profile
 
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.liveholdempokertracker.data.PlayerProfile
-import com.example.liveholdempokertracker.data.PlayerProfileDao
+import com.example.liveholdempokertracker.data.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -19,7 +19,7 @@ class ProfileViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    val profiles: StateFlow<List<PlayerProfile>> = playerProfileDao.getAllProfiles()
+    val profiles: StateFlow<List<ProfileWithTags>> = playerProfileDao.getAllProfilesWithTags()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
@@ -29,49 +29,71 @@ class ProfileViewModel @Inject constructor(
     private val _profileId = savedStateHandle.getStateFlow("profileId", 0)
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val selectedProfile: StateFlow<PlayerProfile> = _profileId
+    val selectedProfileWithTags: StateFlow<ProfileWithTags?> = _profileId
         .flatMapLatest { id ->
-            playerProfileDao.getProfileById(id) ?: flowOf(null)
+            if (id > 0) playerProfileDao.getProfileWithTags(id) else flowOf(null)
         }
-        .filterNotNull()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
-            initialValue = PlayerProfile(name = "Loading...")
+            initialValue = null
         )
 
+    val allTags: StateFlow<List<Tag>> = playerProfileDao.getAllTags()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
 
     fun addProfile(name: String) {
         if (name.isBlank()) return
-
-        viewModelScope.launch {
-            val existingProfile = withContext(Dispatchers.IO) {
-                playerProfileDao.getProfileByName(name)
-            }
-            if (existingProfile == null) {
-                withContext(Dispatchers.IO) {
-                    playerProfileDao.insertOrUpdate(PlayerProfile(name = name))
-                }
+        viewModelScope.launch(Dispatchers.IO) {
+            if (playerProfileDao.getProfileByName(name) == null) {
+                playerProfileDao.insertOrUpdateProfile(PlayerProfile(name = name))
             }
         }
     }
 
     fun deleteProfile(profile: PlayerProfile) {
-        viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                playerProfileDao.delete(profile)
-            }
+        viewModelScope.launch(Dispatchers.IO) {
+            playerProfileDao.deleteProfile(profile)
         }
     }
 
     fun updateMemo(memo: String) {
-        viewModelScope.launch {
-            val currentProfile = selectedProfile.value
-            val updatedProfile = currentProfile.copy(memo = memo)
-            withContext(Dispatchers.IO) {
-                playerProfileDao.insertOrUpdate(updatedProfile)
-            }
+        val currentProfile = selectedProfileWithTags.value?.profile ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            playerProfileDao.insertOrUpdateProfile(currentProfile.copy(memo = memo))
+        }
+    }
+
+    fun addTagToCurrentProfile(tag: Tag) {
+        val profileId = _profileId.value
+        if (profileId == 0) return
+        viewModelScope.launch(Dispatchers.IO) {
+            playerProfileDao.addTagToProfile(PlayerProfileTagCrossRef(id = profileId, tagId = tag.tagId))
+        }
+    }
+
+    fun removeTagFromCurrentProfile(tag: Tag) {
+        val profileId = _profileId.value
+        if (profileId == 0) return
+        viewModelScope.launch(Dispatchers.IO) {
+            playerProfileDao.removeTagFromProfile(PlayerProfileTagCrossRef(id = profileId, tagId = tag.tagId))
+        }
+    }
+
+    fun createNewTag(tagName: String, color: Color) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val newTag = Tag(tagName = tagName, tagColor = color.value.toLong())
+            playerProfileDao.insertTag(newTag)
+        }
+    }
+
+    fun deleteTag(tag: Tag) {
+        viewModelScope.launch(Dispatchers.IO) {
+            playerProfileDao.deleteTag(tag)
         }
     }
 }
-

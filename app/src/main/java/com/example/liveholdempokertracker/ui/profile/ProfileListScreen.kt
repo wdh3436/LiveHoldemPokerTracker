@@ -3,6 +3,7 @@ package com.example.liveholdempokertracker.ui.profile
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -14,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.liveholdempokertracker.ui.navigation.Screen
+import com.example.liveholdempokertracker.data.ProfileWithTags
 
 @Composable
 fun ProfileListScreen(navController: NavController, viewModel: ProfileViewModel = hiltViewModel()) {
@@ -55,11 +57,11 @@ fun ProfileListScreen(navController: NavController, viewModel: ProfileViewModel 
 
         // List of profiles
         LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(profiles) { profile ->
+            items(profiles) { profileWithTags ->
                 ProfileListItem(
-                    profile = profile,
-                    onDelete = { viewModel.deleteProfile(profile) },
-                    onItemClick = { navController.navigate(Screen.Profile.createRoute(profile.id)) }
+                    profileWithTags = profileWithTags,
+                    onDelete = { profile -> viewModel.deleteProfile(profile) },
+                    onItemClick = { profileId -> navController.navigate(Screen.Profile.createRoute(profileId)) }
                 )
                 Divider()
             }
@@ -69,25 +71,40 @@ fun ProfileListScreen(navController: NavController, viewModel: ProfileViewModel 
 
 @Composable
 fun ProfileListItem(
-    profile: com.example.liveholdempokertracker.data.PlayerProfile,
-    onDelete: () -> Unit,
-    onItemClick: () -> Unit
+    profileWithTags: ProfileWithTags,
+    onDelete: (com.example.liveholdempokertracker.data.PlayerProfile) -> Unit,
+    onItemClick: (Int) -> Unit
 ) {
-    Row(
+    val profile = profileWithTags.profile
+    val tags = profileWithTags.tags
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onItemClick() }
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .clickable { onItemClick(profile.id) }
+            .padding(vertical = 8.dp)
     ) {
-        Text(text = profile.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        Spacer(modifier = Modifier.width(16.dp))
-        Text(text = "VPIP: ${profile.getVpip()}%", style = MaterialTheme.typography.bodyMedium)
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text = "PFR: ${profile.getPfr()}%", style = MaterialTheme.typography.bodyMedium)
-        Spacer(modifier = Modifier.width(8.dp))
-        IconButton(onClick = onDelete) {
-            Icon(Icons.Default.Delete, contentDescription = "Delete Profile")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(text = profile.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(text = "VPIP: ${profile.getVpip()}%", style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = "PFR: ${profile.getPfr()}%", style = MaterialTheme.typography.bodyMedium)
+            Spacer(modifier = Modifier.width(8.dp))
+            IconButton(onClick = { onDelete(profile) }) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete Profile")
+            }
+        }
+        if (tags.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(4.dp))
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                items(tags) { tag ->
+                    TagChip(tag = tag, onRemoveClick = { /* No removal from list item */ })
+                }
+            }
         }
     }
 }

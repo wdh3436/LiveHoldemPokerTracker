@@ -60,13 +60,13 @@ fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewMo
                         )
                     }
                     // List saved profiles
-                    items(profiles) { profile ->
+                    items(profiles) { profileWithTags ->
                         Text(
-                            text = profile.name,
+                            text = profileWithTags.profile.name,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    viewModel.assignProfile(selectedSeatIndex, profile)
+                                    viewModel.assignProfile(selectedSeatIndex, profileWithTags.profile)
                                     showProfileDialog = false
                                 }
                                 .padding(16.dp)

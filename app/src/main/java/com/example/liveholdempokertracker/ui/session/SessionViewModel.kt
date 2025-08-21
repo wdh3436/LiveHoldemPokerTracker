@@ -124,7 +124,7 @@ class SessionViewModel @Inject constructor(
                             vpipActionCount = player.vpipActionCount,
                             pfrActionCount = player.pfrActionCount
                         )
-                        playerProfileDao.insertOrUpdate(profileToSave)
+                        playerProfileDao.insertOrUpdateProfile(profileToSave)
                     }
                 }
             }
