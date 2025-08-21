@@ -67,9 +67,13 @@ fun ProfileListItem(profile: com.example.liveholdempokertracker.data.PlayerProfi
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(text = profile.name, style = MaterialTheme.typography.bodyLarge)
+        Text(text = profile.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Spacer(modifier = Modifier.width(16.dp))
+        Text(text = "VPIP: ${profile.getVpip()}%", style = MaterialTheme.typography.bodyMedium)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = "PFR: ${profile.getPfr()}%", style = MaterialTheme.typography.bodyMedium)
+        Spacer(modifier = Modifier.width(8.dp))
         IconButton(onClick = onDelete) {
             Icon(Icons.Default.Delete, contentDescription = "Delete Profile")
         }

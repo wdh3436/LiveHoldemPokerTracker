@@ -15,4 +15,14 @@ data class PlayerProfile(
     val handsPlayed: Int = 0,
     val vpipActionCount: Int = 0,
     val pfrActionCount: Int = 0
-)
+) {
+    fun getVpip(): Int {
+        if (handsPlayed == 0) return 0
+        return (vpipActionCount * 100) / handsPlayed
+    }
+
+    fun getPfr(): Int {
+        if (handsPlayed == 0) return 0
+        return (pfrActionCount * 100) / handsPlayed
+    }
+}
