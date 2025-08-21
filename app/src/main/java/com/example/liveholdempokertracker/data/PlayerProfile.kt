@@ -14,7 +14,9 @@ data class PlayerProfile(
 
     val handsPlayed: Int = 0,
     val vpipActionCount: Int = 0,
-    val pfrActionCount: Int = 0
+    val pfrActionCount: Int = 0,
+
+    val memo: String = ""
 ) {
     fun getVpip(): Int {
         if (handsPlayed == 0) return 0

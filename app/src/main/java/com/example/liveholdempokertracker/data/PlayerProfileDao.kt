@@ -21,4 +21,7 @@ interface PlayerProfileDao {
 
     @Query("SELECT * FROM player_profiles ORDER BY name ASC")
     fun getAllProfiles(): Flow<List<PlayerProfile>>
+
+    @Query("SELECT * FROM player_profiles WHERE id = :id")
+    fun getProfileById(id: Int): Flow<PlayerProfile?>
 }

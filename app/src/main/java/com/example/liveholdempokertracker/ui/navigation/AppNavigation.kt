@@ -20,6 +20,9 @@ import com.example.liveholdempokertracker.ui.session.CurrentSessionScreen
 import com.example.liveholdempokertracker.ui.session.SessionViewModel
 import com.example.liveholdempokertracker.ui.navigation.Screen
 
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
@@ -38,11 +41,14 @@ fun AppNavigation() {
                 viewModel = sessionViewModel
             )
         }
-        composable(Screen.Profile.route) {
+        composable(
+            route = Screen.Profile.route,
+            arguments = listOf(navArgument("profileId") { type = NavType.IntType })
+        ) {
             ProfileScreen(navController = navController)
         }
         composable(Screen.ProfileList.route) {
-            ProfileListScreen()
+            ProfileListScreen(navController = navController)
         }
         composable(Screen.MergeProfile.route) {
             MergeProfileScreen()

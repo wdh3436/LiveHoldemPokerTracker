@@ -1,5 +1,6 @@
 package com.example.liveholdempokertracker.ui.profile
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,9 +12,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.example.liveholdempokertracker.ui.navigation.Screen
 
 @Composable
-fun ProfileListScreen(viewModel: ProfileViewModel = hiltViewModel()) {
+fun ProfileListScreen(navController: NavController, viewModel: ProfileViewModel = hiltViewModel()) {
     val profiles by viewModel.profiles.collectAsState()
     var newProfileName by remember { mutableStateOf("") }
 
@@ -53,7 +56,11 @@ fun ProfileListScreen(viewModel: ProfileViewModel = hiltViewModel()) {
         // List of profiles
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(profiles) { profile ->
-                ProfileListItem(profile = profile, onDelete = { viewModel.deleteProfile(profile) })
+                ProfileListItem(
+                    profile = profile,
+                    onDelete = { viewModel.deleteProfile(profile) },
+                    onItemClick = { navController.navigate(Screen.Profile.createRoute(profile.id)) }
+                )
                 Divider()
             }
         }
@@ -61,10 +68,15 @@ fun ProfileListScreen(viewModel: ProfileViewModel = hiltViewModel()) {
 }
 
 @Composable
-fun ProfileListItem(profile: com.example.liveholdempokertracker.data.PlayerProfile, onDelete: () -> Unit) {
+fun ProfileListItem(
+    profile: com.example.liveholdempokertracker.data.PlayerProfile,
+    onDelete: () -> Unit,
+    onItemClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clickable { onItemClick() }
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
