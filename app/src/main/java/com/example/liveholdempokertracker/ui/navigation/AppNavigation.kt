@@ -60,7 +60,7 @@ fun AppNavigation() {
             AppSettingsScreen()
         }
         composable(Screen.BackupRestore.route) {
-            BackupRestoreScreen()
+            BackupRestoreScreen(navController = navController)
         }
         composable(Screen.CurrentSession.route) {
             CurrentSessionScreen(
