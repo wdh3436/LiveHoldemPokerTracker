@@ -44,9 +44,9 @@ class BackupRestoreViewModel @Inject constructor(
                         FileInputStream(dbFile).use { inputStream ->
                             inputStream.copyTo(outputStream)
                         }
-                    }
+                    } ?: throw Exception("Failed to open output stream.")
                 }
-                _backupState.value = BackupRestoreState.Success("Backup successful! Please restart the app.")
+                _backupState.value = BackupRestoreState.Success("Backup successful! Please restart the app to apply changes.")
             } catch (e: Exception) {
                 _backupState.value = BackupRestoreState.Error("Backup failed: ${e.message}")
             }
@@ -61,12 +61,15 @@ class BackupRestoreViewModel @Inject constructor(
                     db.close()
                     val dbFile = app.getDatabasePath(dbName)
                     app.contentResolver.openInputStream(uri)?.use { inputStream ->
+                        if (inputStream.available() == 0) {
+                            throw Exception("Selected file is empty.")
+                        }
                         FileOutputStream(dbFile).use { outputStream ->
                             inputStream.copyTo(outputStream)
                         }
-                    }
+                    } ?: throw Exception("Failed to open input stream.")
                 }
-                _restoreState.value = BackupRestoreState.Success("Restore successful! Please restart the app.")
+                _restoreState.value = BackupRestoreState.Success("Restore successful! Please restart the app to load the restored data.")
             } catch (e: Exception) {
                 _restoreState.value = BackupRestoreState.Error("Restore failed: ${e.message}")
             }
