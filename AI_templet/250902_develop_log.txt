@@ -1,0 +1,12 @@
+오늘의 개발 내역 (250902):
+
+*   **HUD 통계 기능 강화 (3-Bet, C-Bet 추가)**
+    *   `PlayerProfile.kt`: 3-Bet과 C-Bet 통계 저장을 위한 필드(opportunity/action count) 및 계산 함수 추가.
+    *   `SessionViewModel.kt`: 세션 중 3-Bet과 C-Bet 기회 및 액션을 추적하고 계산하는 로직 구현.
+        - 프리플랍에서 레이즈에 대한 리레이즈를 '3-Bet'으로 집계.
+        - 프리플랍 레이저가 플랍에서 베팅을 이어가는 것을 'C-Bet'으로 집계.
+    *   `CurrentSessionScreen.kt`: 플레이어 HUD UI에 3-Bet과 C-Bet 통계(%)를 VPIP, PFR과 함께 표시하도록 수정.
+
+*   **C-Bet 기능 디버깅**
+    *   C-Bet 기회 및 액션 발생 시점에 토스트 메시지를 표시하는 임시 디버깅 기능 추가.
+    *   기능 확인 후, 디버깅용 임시 코드 모두 제거하여 코드 정리 완료.

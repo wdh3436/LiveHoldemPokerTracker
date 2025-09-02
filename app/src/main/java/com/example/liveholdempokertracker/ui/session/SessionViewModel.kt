@@ -16,14 +16,20 @@ import javax.inject.Inject
 
 data class Player(
     val name: String,
-    
+
     val isDealer: Boolean = false,
     val lastAction: String = "", // 예: "폴드", "체크", "콜", "베팅", "레이즈"
     val holeCards: List<String> = emptyList(), // 플레이어의 홀덤 패
     // HUD 통계 필드
     val handsPlayed: Int = 0,
     val vpipActionCount: Int = 0, // Voluntarily Put Money In Pot
-    val pfrActionCount: Int = 0  // Pre-Flop Raise
+    val pfrActionCount: Int = 0,  // Pre-Flop Raise
+    // 3-Bet
+    val threeBetOpportunityCount: Int = 0,
+    val threeBetActionCount: Int = 0,
+    // C-Bet
+    val cBetOpportunityCount: Int = 0,
+    val cBetActionCount: Int = 0
 )
 
 data class GameState(
@@ -36,7 +42,10 @@ data class GameState(
     val canCheck: Boolean,
     val isPreFlopBbOption: Boolean,
     val vpipPlayersThisHand: Set<Int>,
-    val pfrPlayersThisHand: Set<Int>
+    val pfrPlayersThisHand: Set<Int>,
+    val threeBetOpportunityPlayersThisHand: Set<Int>,
+    val cBetOpportunityPlayerThisHand: Int?,
+    val preFlopRaiser: Int?
 )
 
 @HiltViewModel
@@ -57,9 +66,12 @@ class SessionViewModel @Inject constructor(
 
     private val history = mutableListOf<GameState>()
 
-    // 현재 핸드에서 VPIP/PFR 액션을 한 플레이어를 추적
+    // 현재 핸드에서 통계 액션을 한 플레이어를 추적
     private val vpipPlayersThisHand = mutableSetOf<Int>()
     private val pfrPlayersThisHand = mutableSetOf<Int>()
+    private val threeBetOpportunityPlayersThisHand = mutableSetOf<Int>()
+    private var cBetOpportunityPlayerThisHand: Int? = null
+    private var preFlopRaiser: Int? = null // 프리플랍 레이저를 추적
     private var isPreFlopBbOption = true // 프리플랍에서 BB 옵션을 확인하기 위한 플래그
 
     private fun captureState(): GameState {
@@ -73,7 +85,10 @@ class SessionViewModel @Inject constructor(
             canCheck = canCheck.value,
             isPreFlopBbOption = isPreFlopBbOption,
             vpipPlayersThisHand = vpipPlayersThisHand.toSet(),
-            pfrPlayersThisHand = pfrPlayersThisHand.toSet()
+            pfrPlayersThisHand = pfrPlayersThisHand.toSet(),
+            threeBetOpportunityPlayersThisHand = threeBetOpportunityPlayersThisHand.toSet(),
+            cBetOpportunityPlayerThisHand = cBetOpportunityPlayerThisHand,
+            preFlopRaiser = preFlopRaiser
         )
     }
 
@@ -98,6 +113,10 @@ class SessionViewModel @Inject constructor(
         vpipPlayersThisHand.addAll(lastState.vpipPlayersThisHand)
         pfrPlayersThisHand.clear()
         pfrPlayersThisHand.addAll(lastState.pfrPlayersThisHand)
+        threeBetOpportunityPlayersThisHand.clear()
+        threeBetOpportunityPlayersThisHand.addAll(lastState.threeBetOpportunityPlayersThisHand)
+        cBetOpportunityPlayerThisHand = lastState.cBetOpportunityPlayerThisHand
+        preFlopRaiser = lastState.preFlopRaiser
     }
 
     fun assignProfile(seatIndex: Int, profile: PlayerProfile) {
@@ -107,7 +126,11 @@ class SessionViewModel @Inject constructor(
             holeCards = tempHoleCards,
             handsPlayed = profile.handsPlayed,
             vpipActionCount = profile.vpipActionCount,
-            pfrActionCount = profile.pfrActionCount
+            pfrActionCount = profile.pfrActionCount,
+            threeBetOpportunityCount = profile.threeBetOpportunityCount,
+            threeBetActionCount = profile.threeBetActionCount,
+            cBetOpportunityCount = profile.cBetOpportunityCount,
+            cBetActionCount = profile.cBetActionCount
         )
     }
 
@@ -122,7 +145,11 @@ class SessionViewModel @Inject constructor(
                             name = player.name,
                             handsPlayed = player.handsPlayed,
                             vpipActionCount = player.vpipActionCount,
-                            pfrActionCount = player.pfrActionCount
+                            pfrActionCount = player.pfrActionCount,
+                            threeBetOpportunityCount = player.threeBetOpportunityCount,
+                            threeBetActionCount = player.threeBetActionCount,
+                            cBetOpportunityCount = player.cBetOpportunityCount,
+                            cBetActionCount = player.cBetActionCount
                         )
                         playerProfileDao.insertOrUpdateProfile(profileToSave)
                     }
@@ -141,6 +168,9 @@ class SessionViewModel @Inject constructor(
         activePlayerIndex.value = 0
         vpipPlayersThisHand.clear()
         pfrPlayersThisHand.clear()
+        threeBetOpportunityPlayersThisHand.clear()
+        cBetOpportunityPlayerThisHand = null
+        preFlopRaiser = null
         history.clear()
         canUndo.value = false
         updateActionFlags()
@@ -148,6 +178,16 @@ class SessionViewModel @Inject constructor(
 
     fun nextPhase() {
         isPreFlopBbOption = false // 프리플랍 단계가 끝나면 플래그를 비활성화
+
+        // C-Bet 기회 확인
+        if (gamePhase.value == "Pre-Flop" && preFlopRaiser != null) {
+            val player = seatAssignments[preFlopRaiser!!]
+            if (player != null) {
+                cBetOpportunityPlayerThisHand = preFlopRaiser
+                seatAssignments[preFlopRaiser!!] = player.copy(cBetOpportunityCount = player.cBetOpportunityCount + 1)
+            }
+        }
+
         gamePhase.value = when (gamePhase.value) {
             "Pre-Flop" -> {
                 addFlopCards()
@@ -225,6 +265,9 @@ class SessionViewModel @Inject constructor(
         // Reset hand-specific trackers
         vpipPlayersThisHand.clear()
         pfrPlayersThisHand.clear()
+        threeBetOpportunityPlayersThisHand.clear()
+        cBetOpportunityPlayerThisHand = null
+        preFlopRaiser = null
 
         // Increment handsPlayed for all players
         seatAssignments.keys.forEach { index ->
@@ -271,19 +314,31 @@ class SessionViewModel @Inject constructor(
         history.add(captureState())
         canUndo.value = true
 
-        // --- HUD 통계 계산 로직 (변경 없음) ---
+        val isRaise = action == "베팅/레이즈"
+
+        // --- HUD 통계 계산 로직 ---
         if (gamePhase.value == "Pre-Flop") {
-            val isVpipAction = action == "체크/콜" || action == "베팅/레이즈"
+            // VPIP
+            val isVpipAction = action == "체크/콜" || isRaise
             if (isVpipAction && vpipPlayersThisHand.add(playerIndex)) {
                 player = player.copy(vpipActionCount = player.vpipActionCount + 1)
-                seatAssignments[playerIndex] = player
             }
-            val isPfrAction = action == "베팅/레이즈"
-            if (isPfrAction && pfrPlayersThisHand.add(playerIndex)) {
+            // PFR
+            if (isRaise && pfrPlayersThisHand.add(playerIndex)) {
                 player = player.copy(pfrActionCount = player.pfrActionCount + 1)
-                seatAssignments[playerIndex] = player
+            }
+            // 3-Bet
+            if (threeBetOpportunityPlayersThisHand.contains(playerIndex) && isRaise) {
+                player = player.copy(threeBetActionCount = player.threeBetActionCount + 1)
+            }
+        } else if (gamePhase.value == "Flop") {
+            // C-Bet
+            if (cBetOpportunityPlayerThisHand == playerIndex && isRaise) {
+                player = player.copy(cBetActionCount = player.cBetActionCount + 1)
+                cBetOpportunityPlayerThisHand = null // C-Bet 기회는 한 번만 주어짐
             }
         }
+        seatAssignments[playerIndex] = player
         // --- HUD 통계 계산 로직 끝 ---
 
         seatAssignments[playerIndex] = player.copy(lastAction = action)
@@ -297,7 +352,6 @@ class SessionViewModel @Inject constructor(
             }
         }
 
-        val isRaise = action == "베팅/레이즈"
         if (isRaise) {
             lastRaiserIndex.value = playerIndex
             isPreFlopBbOption = false // 레이즈가 나오면 BB 옵션은 더이상 유효하지 않음
@@ -321,6 +375,14 @@ class SessionViewModel @Inject constructor(
             nextIndex = (nextIndex + 1) % seatAssignments.size
         } while (seatAssignments[nextIndex]?.lastAction == "폴드" || seatAssignments[nextIndex] == null)
 
+        // 3-Bet 기회 확인 (Pre-Flop에서 레이즈가 나온 상황)
+        if (gamePhase.value == "Pre-Flop" && lastRaiserIndex.value != null) {
+            val nextPlayer = seatAssignments[nextIndex]
+            if (nextPlayer != null && threeBetOpportunityPlayersThisHand.add(nextIndex)) {
+                seatAssignments[nextIndex] = nextPlayer.copy(threeBetOpportunityCount = nextPlayer.threeBetOpportunityCount + 1)
+            }
+        }
+
         // 다음 플레이어가 마지막 레이저와 동일하면 라운드 종료 로직 검토
         if (nextIndex == lastRaiserIndex.value) {
             // 단, 프리플랍에서 BB가 옵션을 행사해야 하는 경우는 제외
@@ -339,6 +401,11 @@ class SessionViewModel @Inject constructor(
     }
 
     private fun endBettingRound() {
+        // 프리플랍 라운드가 끝날 때, 마지막 레이저를 preFlopRaiser로 기록
+        if (gamePhase.value == "Pre-Flop") {
+            preFlopRaiser = lastRaiserIndex.value
+        }
+
         val activePlayers = seatAssignments.values.count { it.lastAction != "폴드" }
         if (activePlayers <= 1) {
             gamePhase.value = "Showdown" // 플레이어가 한 명만 남으면 쇼다운으로 이동

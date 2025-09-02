@@ -193,6 +193,8 @@ fun PlayerSeat(
     // --- HUD 통계 계산 ---
     val vpip = if (player.handsPlayed > 0) (player.vpipActionCount * 100) / player.handsPlayed else 0
     val pfr = if (player.handsPlayed > 0) (player.pfrActionCount * 100) / player.handsPlayed else 0
+    val threeBet = if (player.threeBetOpportunityCount > 0) (player.threeBetActionCount * 100) / player.threeBetOpportunityCount else 0
+    val cBet = if (player.cBetOpportunityCount > 0) (player.cBetActionCount * 100) / player.cBetOpportunityCount else 0
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         // 플레이어 카드
@@ -205,7 +207,7 @@ fun PlayerSeat(
 
         Box(
             modifier = Modifier
-                .size(100.dp) // HUD 표시를 위해 박스 크기 증가
+                .size(120.dp) // HUD 표시를 위해 박스 크기 증가
                 .background(Color.DarkGray) // 플레이어 아바타/프로필 이미지 Placeholder
                 .border(
                     width = if (isActive) 4.dp else 1.dp,
@@ -225,6 +227,8 @@ fun PlayerSeat(
                 // --- HUD 통계 표시 ---
                 Text("VPIP: $vpip%", color = Color.White, fontSize = 10.sp)
                 Text("PFR: $pfr%", color = Color.White, fontSize = 10.sp)
+                Text("3-Bet: $threeBet%", color = Color.White, fontSize = 10.sp)
+                Text("C-Bet: $cBet%", color = Color.White, fontSize = 10.sp)
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
