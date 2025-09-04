@@ -1,0 +1,28 @@
+오늘의 개발 내역 (250904):
+
+*   **프로필 데이터 합치기 기능 구현 (기획서 ID 3-2)**
+    *   `PlayerProfileDao.kt`: 두 프로필의 통계를 합산하고 원본을 삭제하는 `mergeProfiles` 트랜잭션 함수 추가.
+    *   `ProfileViewModel.kt`: 데이터 합치기 로직을 호출하는 `mergeProfiles` 함수 추가.
+    *   `MergeProfileScreen.kt`: 사용자가 대상 프로필과 소스 프로필을 선택하고, 확인을 거쳐 합치기를 실행하는 UI 및 로직 구현.
+    *   `ProfileListScreen.kt`: '프로필 데이터 합치기' 화면으로 이동하는 버튼 추가.
+
+*   **앱 설정 기능 구현: 테이블 색상 변경 (기획서 ID 4-1)**
+    *   `app/build.gradle.kts`: Jetpack DataStore 의존성 추가.
+    *   `SettingsRepository.kt`: DataStore를 사용하여 사용자가 선택한 테이블 색상을 영구적으로 저장하는 저장소 클래스 신규 생성.
+    *   `SettingsViewModel.kt`: 설정 화면의 UI와 데이터 로직을 연결하는 ViewModel 신규 생성.
+    *   `DatabaseModule.kt`: `SettingsRepository`의 의존성을 Hilt에 제공하도록 수정.
+    *   `AppSettingsScreen.kt`: 사용자가 테이블 색상을 선택할 수 있는 UI 구현.
+    *   `SessionViewModel.kt`: `SettingsRepository`의 데이터를 구독하여 세션에 적용하도록 수정.
+    *   `CurrentSessionScreen.kt`: 저장된 테이블 색상 설정을 실제 세션 화면 배경에 적용.
+
+*   **코드 리팩토링 및 버그 수정**
+    *   `NewSessionSetupScreen.kt`: 전역 설정과 중복되는 임시 테이블 색상 선택 UI 및 관련 로직 제거.
+    *   Hilt KSP(Kotlin Symbol Processing) 오류, 미선언(Unresolved reference) 오류 등 빌드 과정에서 발생한 다수의 오류 수정.
+
+향후 개발 계획:
+
+*   **카드 뒷면 이미지 변경 기능 (앱 설정)**
+    *   '앱 설정' 화면에 카드 뒷면 이미지를 선택하는 UI를 추가하고, 세션 화면에 적용하는 기능.
+
+*   **프로필 이미지 변경 기능 (프로필 강화)**
+    *   사용자가 갤러리에서 사진을 선택하여 각 플레이어 프로필의 이미지로 설정하는 기능.
