@@ -96,4 +96,13 @@ class ProfileViewModel @Inject constructor(
             playerProfileDao.deleteTag(tag)
         }
     }
+
+    fun mergeProfiles(sourceProfile: PlayerProfile, destinationProfile: PlayerProfile) {
+        viewModelScope.launch(Dispatchers.IO) {
+            // Ensure we don't merge a profile with itself
+            if (sourceProfile.id == destinationProfile.id) return@launch
+
+            playerProfileDao.mergeProfiles(sourceProfile, destinationProfile)
+        }
+    }
 }

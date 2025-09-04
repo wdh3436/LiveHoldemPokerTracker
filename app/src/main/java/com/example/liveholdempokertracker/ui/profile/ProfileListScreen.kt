@@ -55,6 +55,15 @@ fun ProfileListScreen(navController: NavController, viewModel: ProfileViewModel 
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        Button(
+            onClick = { navController.navigate(Screen.MergeProfile.route) },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("프로필 데이터 합치기")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // List of profiles
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(profiles) { profileWithTags ->

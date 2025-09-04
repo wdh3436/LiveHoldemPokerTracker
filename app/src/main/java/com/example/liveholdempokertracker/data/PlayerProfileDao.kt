@@ -48,4 +48,19 @@ interface PlayerProfileDao {
 
     @Delete
     suspend fun removeTagFromProfile(crossRef: PlayerProfileTagCrossRef): Unit
+
+    @Transaction
+    suspend fun mergeProfiles(sourceProfile: PlayerProfile, destinationProfile: PlayerProfile) {
+        val mergedProfile = destinationProfile.copy(
+            handsPlayed = destinationProfile.handsPlayed + sourceProfile.handsPlayed,
+            vpipActionCount = destinationProfile.vpipActionCount + sourceProfile.vpipActionCount,
+            pfrActionCount = destinationProfile.pfrActionCount + sourceProfile.pfrActionCount,
+            threeBetOpportunityCount = destinationProfile.threeBetOpportunityCount + sourceProfile.threeBetOpportunityCount,
+            threeBetActionCount = destinationProfile.threeBetActionCount + sourceProfile.threeBetActionCount,
+            cBetOpportunityCount = destinationProfile.cBetOpportunityCount + sourceProfile.cBetOpportunityCount,
+            cBetActionCount = destinationProfile.cBetActionCount + sourceProfile.cBetActionCount
+        )
+        insertOrUpdateProfile(mergedProfile)
+        deleteProfile(sourceProfile)
+    }
 }

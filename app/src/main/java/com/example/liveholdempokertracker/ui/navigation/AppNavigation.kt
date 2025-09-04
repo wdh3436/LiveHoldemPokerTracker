@@ -51,7 +51,7 @@ fun AppNavigation() {
             ProfileListScreen(navController = navController)
         }
         composable(Screen.MergeProfile.route) {
-            MergeProfileScreen()
+            MergeProfileScreen(navController = navController)
         }
         composable(Screen.Settings.route) {
             SettingsScreen(navController = navController)
