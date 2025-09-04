@@ -33,7 +33,6 @@ fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewMo
     val profiles by profileViewModel.profiles.collectAsState()
 
     var seatCount by viewModel.seatCount
-    var selectedColor by viewModel.selectedColor
     val seatAssignments = viewModel.seatAssignments
     val seatCountInt = seatCount.toIntOrNull() ?: 0
 
@@ -98,30 +97,6 @@ fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewMo
             label = { Text("좌석 수 입력 (최대 10)") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text("테이블 컬러 선택")
-        Spacer(modifier = Modifier.height(8.dp))
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(viewModel.colors) { color ->
-                val isSelected = color == selectedColor
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(color)
-                        .border(
-                            width = 2.dp,
-                            color = if (isSelected) Color.Black else Color.Transparent,
-                            shape = CircleShape
-                        )
-                        .clickable { selectedColor = color }
-                )
-            }
-        }
-
         Spacer(modifier = Modifier.height(16.dp))
 
         if (seatCountInt > 0) {

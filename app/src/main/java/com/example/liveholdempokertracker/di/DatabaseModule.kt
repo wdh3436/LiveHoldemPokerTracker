@@ -30,4 +30,10 @@ object DatabaseModule {
     fun providePlayerProfileDao(appDatabase: AppDatabase): PlayerProfileDao {
         return appDatabase.playerProfileDao()
     }
+
+    @Provides
+    @Singleton
+    fun provideSettingsRepository(@ApplicationContext context: Context): com.example.liveholdempokertracker.data.SettingsRepository {
+        return com.example.liveholdempokertracker.data.SettingsRepository(context)
+    }
 }

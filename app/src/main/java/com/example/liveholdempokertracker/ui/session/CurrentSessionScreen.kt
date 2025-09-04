@@ -15,6 +15,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,7 +30,8 @@ import com.example.liveholdempokertracker.ui.navigation.Screen
 @Composable
 fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewModel) {
     val seatCount by viewModel.seatCount
-    val selectedColor by viewModel.selectedColor
+    val tableColorValue by viewModel.tableColor.collectAsState(initial = 0xFF2E7D32) // Green default
+    val tableColor = Color(tableColorValue ?: 0xFF2E7D32)
     val seatAssignments = viewModel.seatAssignments
     val seatCountInt = seatCount.toIntOrNull() ?: 0
     val gamePhase by viewModel.gamePhase
@@ -40,7 +42,7 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(selectedColor) // 테이블 색상 적용
+            .background(tableColor) // 테이블 색상 적용
             .padding(16.dp)
     ) {
         IconButton(

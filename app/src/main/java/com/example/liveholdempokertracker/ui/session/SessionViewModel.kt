@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.liveholdempokertracker.data.PlayerProfile
 import com.example.liveholdempokertracker.data.PlayerProfileDao
+import com.example.liveholdempokertracker.data.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -50,11 +51,10 @@ data class GameState(
 
 @HiltViewModel
 class SessionViewModel @Inject constructor(
-    private val playerProfileDao: PlayerProfileDao
+    private val playerProfileDao: PlayerProfileDao,
+    private val settingsRepository: SettingsRepository
 ) : ViewModel() {
     var seatCount = mutableStateOf("")
-    val colors = listOf(Color.Red, Color.Green, Color.Blue, Color.Yellow, Color.Cyan, Color.Magenta)
-    var selectedColor = mutableStateOf(colors.first())
     val seatAssignments = mutableStateMapOf<Int, Player>()
     val communityCards = mutableStateListOf<String>()
     var gamePhase = mutableStateOf("Pre-Flop")
@@ -63,6 +63,8 @@ class SessionViewModel @Inject constructor(
     var isBetMadeThisRound = mutableStateOf(false) // 현재 라운드에 베팅이 있었는지 여부
     val canCheck = mutableStateOf(false) // 현재 플레이어가 체크를 할 수 있는지 여부
     val canUndo = mutableStateOf(false)
+
+    val tableColor = settingsRepository.tableColorFlow
 
     private val history = mutableListOf<GameState>()
 
@@ -161,7 +163,6 @@ class SessionViewModel @Inject constructor(
 
     fun clearSetup() {
         seatCount.value = ""
-        selectedColor.value = colors.first()
         seatAssignments.clear()
         communityCards.clear()
         gamePhase.value = "Pre-Flop"
