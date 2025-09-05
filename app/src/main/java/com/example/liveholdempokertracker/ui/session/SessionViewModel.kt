@@ -11,6 +11,10 @@ import com.example.liveholdempokertracker.data.PlayerProfileDao
 import com.example.liveholdempokertracker.data.SettingsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -64,7 +68,21 @@ class SessionViewModel @Inject constructor(
     val canCheck = mutableStateOf(false) // 현재 플레이어가 체크를 할 수 있는지 여부
     val canUndo = mutableStateOf(false)
 
-    val tableColor = settingsRepository.tableColorFlow
+    val tableColor: StateFlow<Color> = settingsRepository.tableColorFlow
+        .map { Color(it ?: 0xFF2E7D32) } // Green default
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = Color(0xFF2E7D32)
+        )
+
+    val cardBackColor: StateFlow<Color> = settingsRepository.cardBackColorFlow
+        .map { Color(it ?: 0xFF1565C0) } // Blue default
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.Eagerly,
+            initialValue = Color(0xFF1565C0)
+        )
 
     private val history = mutableListOf<GameState>()
 

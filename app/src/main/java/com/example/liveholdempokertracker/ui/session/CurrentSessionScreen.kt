@@ -1,6 +1,7 @@
 package com.example.liveholdempokertracker.ui.session
 
 import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -19,19 +20,24 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.liveholdempokertracker.R
 import com.example.liveholdempokertracker.ui.navigation.Screen
 
 @Composable
 fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewModel) {
     val seatCount by viewModel.seatCount
-    val tableColorValue by viewModel.tableColor.collectAsState(initial = 0xFF2E7D32) // Green default
-    val tableColor = Color(tableColorValue ?: 0xFF2E7D32)
+    val tableColor by viewModel.tableColor.collectAsState()
+    val cardBackColor by viewModel.cardBackColor.collectAsState()
     val seatAssignments = viewModel.seatAssignments
     val seatCountInt = seatCount.toIntOrNull() ?: 0
     val gamePhase by viewModel.gamePhase
@@ -102,7 +108,8 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
                     isActive = i == viewModel.activePlayerIndex.value,
                     isDealer = i == dealerIndex,
                     isSmallBlind = i == sbIndex,
-                    isBigBlind = i == bbIndex
+                    isBigBlind = i == bbIndex,
+                    cardBackColor = cardBackColor
                 )
             }
         }
@@ -190,7 +197,8 @@ fun PlayerSeat(
     isActive: Boolean = false,
     isDealer: Boolean,
     isSmallBlind: Boolean,
-    isBigBlind: Boolean
+    isBigBlind: Boolean,
+    cardBackColor: Color
 ) {
     // --- HUD 통계 계산 ---
     val vpip = if (player.handsPlayed > 0) (player.vpipActionCount * 100) / player.handsPlayed else 0
@@ -201,8 +209,8 @@ fun PlayerSeat(
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         // 플레이어 카드
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            player.holeCards.forEach { card ->
-                CardPlaceholder(width = 30.dp, height = 40.dp, text = card)
+            player.holeCards.forEach { _ -> // 카드 내용은 무시하고 뒷면을 표시
+                CardPlaceholder(width = 30.dp, height = 40.dp, text = "", cardColor = cardBackColor)
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
@@ -252,14 +260,29 @@ fun PlayerSeat(
 }
 
 @Composable
-fun CardPlaceholder(width: Dp = 50.dp, height: Dp = 70.dp, text: String = "") {
+fun CardPlaceholder(width: Dp = 50.dp, height: Dp = 70.dp, text: String = "", cardColor: Color? = null) {
     Box(
         modifier = Modifier
             .size(width, height)
-            .background(Color.White, shape = RoundedCornerShape(4.dp))
-            .border(1.dp, Color.Black, RoundedCornerShape(4.dp)),
+            .border(1.dp, Color.Black, RoundedCornerShape(4.dp))
+            .clip(RoundedCornerShape(4.dp)),
         contentAlignment = Alignment.Center
     ) {
-        Text(text = text, color = Color.Black, fontSize = 16.sp)
+        if (cardColor != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(cardColor)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.White),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(text = text, color = Color.Black, fontSize = 16.sp)
+            }
+        }
     }
 }
