@@ -9,15 +9,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-
 import androidx.navigation.NavController
 import com.example.liveholdempokertracker.ui.navigation.Screen
+import com.example.liveholdempokertracker.ui.session.SessionViewModel
 
 @Composable
-fun NewSessionScreen(navController: NavController) {
+fun NewSessionScreen(navController: NavController, sessionViewModel: SessionViewModel) {
+    val hasPreviousSetup by sessionViewModel.hasPreviousSetup.collectAsState()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -25,7 +29,17 @@ fun NewSessionScreen(navController: NavController) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Button(onClick = { /*TODO*/ }) {
+        Button(
+            onClick = {
+                sessionViewModel.loadPreviousSetupAndStart {
+                    navController.navigate(Screen.CurrentSession.route) {
+                        // Prevent going back to the setup screen
+                        popUpTo(Screen.NewSession.route) { inclusive = true }
+                    }
+                }
+            },
+            enabled = hasPreviousSetup
+        ) {
             Text("기존 게임 설정 불러오기")
         }
         Spacer(modifier = Modifier.height(16.dp))
