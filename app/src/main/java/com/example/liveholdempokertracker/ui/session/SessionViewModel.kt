@@ -17,8 +17,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import javax.inject.Inject
+import com.example.liveholdempokertracker.data.ActiveSession
+import kotlinx.coroutines.flow.first
 
+@Serializable
 data class Player(
     val name: String,
 
@@ -37,6 +43,7 @@ data class Player(
     val cBetActionCount: Int = 0
 )
 
+@Serializable
 data class GameState(
     val seatAssignments: Map<Int, Player>,
     val communityCards: List<String>,
@@ -84,6 +91,61 @@ class SessionViewModel @Inject constructor(
             initialValue = Color(0xFF1565C0)
         )
 
+    // --- New StateFlow to notify UI about resumable session ---
+    val hasActiveSession: StateFlow<Boolean> = playerProfileDao.getActiveSession()
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    // --- New Save/Load/Restore Logic ---
+    private fun saveGameState() {
+        viewModelScope.launch(Dispatchers.IO) {
+            val state = captureState()
+            val jsonState = Json.encodeToString(state)
+            playerProfileDao.insertOrUpdateActiveSession(ActiveSession(gameStateJson = jsonState))
+        }
+    }
+
+    fun loadActiveSession(onLoaded: () -> Unit) {
+        viewModelScope.launch {
+            val activeSession = playerProfileDao.getActiveSession().first()
+            if (activeSession != null) {
+                val state = Json.decodeFromString<GameState>(activeSession.gameStateJson)
+                restoreState(state)
+                onLoaded()
+            }
+        }
+    }
+
+    private fun clearActiveSession() {
+        viewModelScope.launch(Dispatchers.IO) {
+            playerProfileDao.deleteActiveSession()
+        }
+    }
+
+    private fun restoreState(state: GameState) {
+        seatAssignments.clear()
+        seatAssignments.putAll(state.seatAssignments)
+        communityCards.clear()
+        communityCards.addAll(state.communityCards)
+        gamePhase.value = state.gamePhase
+        activePlayerIndex.value = state.activePlayerIndex
+        lastRaiserIndex.value = state.lastRaiserIndex
+        isBetMadeThisRound.value = state.isBetMadeThisRound
+        canCheck.value = state.canCheck
+        isPreFlopBbOption = state.isPreFlopBbOption
+        vpipPlayersThisHand.clear()
+        vpipPlayersThisHand.addAll(state.vpipPlayersThisHand)
+        pfrPlayersThisHand.clear()
+        pfrPlayersThisHand.addAll(state.pfrPlayersThisHand)
+        threeBetOpportunityPlayersThisHand.clear()
+        threeBetOpportunityPlayersThisHand.addAll(state.threeBetOpportunityPlayersThisHand)
+        cBetOpportunityPlayerThisHand = state.cBetOpportunityPlayerThisHand
+        preFlopRaiser = state.preFlopRaiser
+        
+        // Also restore seatCount for the UI
+        seatCount.value = state.seatAssignments.size.toString()
+    }
+
     private val history = mutableListOf<GameState>()
 
     // 현재 핸드에서 통계 액션을 한 플레이어를 추적
@@ -118,25 +180,8 @@ class SessionViewModel @Inject constructor(
         val lastState = history.removeLast()
         canUndo.value = history.isNotEmpty()
 
-        // Restore state
-        seatAssignments.clear()
-        seatAssignments.putAll(lastState.seatAssignments)
-        communityCards.clear()
-        communityCards.addAll(lastState.communityCards)
-        gamePhase.value = lastState.gamePhase
-        activePlayerIndex.value = lastState.activePlayerIndex
-        lastRaiserIndex.value = lastState.lastRaiserIndex
-        isBetMadeThisRound.value = lastState.isBetMadeThisRound
-        canCheck.value = lastState.canCheck
-        isPreFlopBbOption = lastState.isPreFlopBbOption
-        vpipPlayersThisHand.clear()
-        vpipPlayersThisHand.addAll(lastState.vpipPlayersThisHand)
-        pfrPlayersThisHand.clear()
-        pfrPlayersThisHand.addAll(lastState.pfrPlayersThisHand)
-        threeBetOpportunityPlayersThisHand.clear()
-        threeBetOpportunityPlayersThisHand.addAll(lastState.threeBetOpportunityPlayersThisHand)
-        cBetOpportunityPlayerThisHand = lastState.cBetOpportunityPlayerThisHand
-        preFlopRaiser = lastState.preFlopRaiser
+        restoreState(lastState) // Use the new restoreState function
+        saveGameState() // Save the restored state
     }
 
     fun assignProfile(seatIndex: Int, profile: PlayerProfile) {
@@ -158,10 +203,10 @@ class SessionViewModel @Inject constructor(
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 seatAssignments.values.forEach { player ->
-                    if (player.name != "GUEST") { // Do not save GUEST profiles
+                    if (player.name != "GUEST") {
                         val existingProfile = playerProfileDao.getProfileByName(player.name)
                         val profileToSave = PlayerProfile(
-                            id = existingProfile?.id ?: 0, // Use existing id or 0 for new profile
+                            id = existingProfile?.id ?: 0,
                             name = player.name,
                             handsPlayed = player.handsPlayed,
                             vpipActionCount = player.vpipActionCount,
@@ -174,6 +219,8 @@ class SessionViewModel @Inject constructor(
                         playerProfileDao.insertOrUpdateProfile(profileToSave)
                     }
                 }
+                // --- Clear active session after saving ---
+                playerProfileDao.deleteActiveSession()
             }
             onSessionSaved()
         }
@@ -193,6 +240,7 @@ class SessionViewModel @Inject constructor(
         history.clear()
         canUndo.value = false
         updateActionFlags()
+        clearActiveSession() // Clear any persisted session
     }
 
     fun nextPhase() {
@@ -223,6 +271,7 @@ class SessionViewModel @Inject constructor(
             "River" -> "Showdown"
             else -> "Pre-Flop"
         }
+        saveGameState() // Save state after phase change
     }
 
     fun addFlopCards() {
@@ -277,6 +326,7 @@ class SessionViewModel @Inject constructor(
 
         history.clear() // ADDED BACK
         canUndo.value = false // ADDED BACK
+        saveGameState() // Save state on new hand
     }
 
     fun startGame(dealerIndex: Int) {
@@ -323,7 +373,7 @@ class SessionViewModel @Inject constructor(
         activePlayerIndex.value = utgIndex
         isBetMadeThisRound.value = true // 프리플랍에서는 블라인드 베팅이 있으므로 항상 true
         updateActionFlags()
-        // canUndo.value = history.isNotEmpty() // REMOVED
+        saveGameState() // Save state at the start of the game
     }
 
     fun handleAction(playerIndex: Int, action: String) {
@@ -367,6 +417,7 @@ class SessionViewModel @Inject constructor(
             val activePlayers = seatAssignments.values.count { it.lastAction != "폴드" }
             if (activePlayers <= 1) {
                 gamePhase.value = "Showdown"
+                saveGameState() // Save final state before ending hand
                 return // 핸드가 종료되었으므로 더 이상 진행하지 않음
             }
         }
@@ -385,6 +436,7 @@ class SessionViewModel @Inject constructor(
             // 라운드 종료 여부는 moveToNextPlayer 내부에서 처리.
             moveToNextPlayer(startFrom = playerIndex)
         }
+        saveGameState() // Save state after every action
     }
 
     private fun moveToNextPlayer(startFrom: Int) {
@@ -432,6 +484,7 @@ class SessionViewModel @Inject constructor(
             nextPhase()
             resetForNewRound()
         }
+        saveGameState() // Save state after round ends
     }
 
     private fun updateActionFlags() {

@@ -30,7 +30,7 @@ fun AppNavigation() {
 
     NavHost(navController = navController, startDestination = Screen.Home.route) {
         composable(Screen.Home.route) {
-            HomeScreen(navController = navController)
+            HomeScreen(navController = navController, sessionViewModel = sessionViewModel)
         }
         composable(Screen.NewSession.route) {
             NewSessionScreen(navController = navController)

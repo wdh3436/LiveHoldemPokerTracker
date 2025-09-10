@@ -63,4 +63,14 @@ interface PlayerProfileDao {
         insertOrUpdateProfile(mergedProfile)
         deleteProfile(sourceProfile)
     }
+
+    // Active Session queries
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertOrUpdateActiveSession(session: ActiveSession)
+
+    @Query("SELECT * FROM active_session WHERE id = 1")
+    fun getActiveSession(): Flow<ActiveSession?>
+
+    @Query("DELETE FROM active_session")
+    suspend fun deleteActiveSession()
 }
