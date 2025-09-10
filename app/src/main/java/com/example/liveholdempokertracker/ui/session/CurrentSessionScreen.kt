@@ -1,6 +1,6 @@
 package com.example.liveholdempokertracker.ui.session
 
-import android.widget.Toast
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -151,7 +151,6 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
             ) {
                 Button(onClick = {
                     viewModel.handleAction(viewModel.activePlayerIndex.value, "폴드")
-                    Toast.makeText(context, "폴드 액션", Toast.LENGTH_SHORT).show()
                 }) {
                     Text("폴드")
                 }
@@ -160,13 +159,11 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
                     // 베팅이 없는 상황: 체크, 베팅 버튼 표시
                     Button(onClick = {
                         viewModel.handleAction(viewModel.activePlayerIndex.value, "체크/콜")
-                        Toast.makeText(context, "체크 액션", Toast.LENGTH_SHORT).show()
                     }) {
                         Text("체크")
                     }
                     Button(onClick = {
                         viewModel.handleAction(viewModel.activePlayerIndex.value, "베팅/레이즈")
-                        Toast.makeText(context, "베팅 액션", Toast.LENGTH_SHORT).show()
                     }) {
                         Text("베팅")
                     }
@@ -174,13 +171,11 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
                     // 베팅이 나온 상황: 콜, 레이즈 버튼 표시
                     Button(onClick = {
                         viewModel.handleAction(viewModel.activePlayerIndex.value, "체크/콜")
-                        Toast.makeText(context, "콜 액션", Toast.LENGTH_SHORT).show()
                     }) {
                         Text("콜")
                     }
                     Button(onClick = {
                         viewModel.handleAction(viewModel.activePlayerIndex.value, "베팅/레이즈")
-                        Toast.makeText(context, "레이즈 액션", Toast.LENGTH_SHORT).show()
                     }) {
                         Text("레이즈")
                     }
