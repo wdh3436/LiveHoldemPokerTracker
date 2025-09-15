@@ -32,7 +32,9 @@ data class Player(
     val threeBetOpportunityCount: Int = 0,
     val threeBetActionCount: Int = 0,
     val cBetOpportunityCount: Int = 0,
-    val cBetActionCount: Int = 0
+    val cBetActionCount: Int = 0,
+    val wentToShowdownCount: Int = 0,
+    val wonAtShowdownCount: Int = 0
 )
 
 @Serializable
@@ -66,6 +68,9 @@ class SessionViewModel @Inject constructor(
     var isBetMadeThisRound = mutableStateOf(false)
     val canCheck = mutableStateOf(false)
     val canUndo = mutableStateOf(false)
+
+    val showWinnerSelection = mutableStateOf(false)
+    val selectedWinners = mutableStateListOf<Int>()
 
     val tableColor: StateFlow<Color> = settingsRepository.tableColorFlow
         .map { Color(it ?: 0xFF2E7D32) }
@@ -204,7 +209,9 @@ class SessionViewModel @Inject constructor(
             threeBetOpportunityCount = profile.threeBetOpportunityCount,
             threeBetActionCount = profile.threeBetActionCount,
             cBetOpportunityCount = profile.cBetOpportunityCount,
-            cBetActionCount = profile.cBetActionCount
+            cBetActionCount = profile.cBetActionCount,
+            wentToShowdownCount = profile.wentToShowdownCount,
+            wonAtShowdownCount = profile.wonAtShowdownCount
         )
     }
 
@@ -223,7 +230,9 @@ class SessionViewModel @Inject constructor(
                             threeBetOpportunityCount = player.threeBetOpportunityCount,
                             threeBetActionCount = player.threeBetActionCount,
                             cBetOpportunityCount = player.cBetOpportunityCount,
-                            cBetActionCount = player.cBetActionCount
+                            cBetActionCount = player.cBetActionCount,
+                            wentToShowdownCount = player.wentToShowdownCount,
+                            wonAtShowdownCount = player.wonAtShowdownCount
                         )
                         playerProfileDao.insertOrUpdateProfile(profileToSave)
                     }
@@ -267,6 +276,11 @@ class SessionViewModel @Inject constructor(
             "River" -> "Showdown"
             else -> "Pre-Flop"
         }
+
+        if (gamePhase.value == "Showdown") {
+            showWinnerSelection.value = true
+        }
+
         saveGameState()
     }
 
@@ -370,6 +384,7 @@ class SessionViewModel @Inject constructor(
             val activePlayers = seatAssignments.values.count { it.lastAction != "폴드" }
             if (activePlayers <= 1) {
                 gamePhase.value = "Showdown"
+                showWinnerSelection.value = true
                 saveGameState()
                 return
             }
@@ -418,6 +433,7 @@ class SessionViewModel @Inject constructor(
         val activePlayers = seatAssignments.values.count { it.lastAction != "폴드" }
         if (activePlayers <= 1) {
             gamePhase.value = "Showdown"
+            showWinnerSelection.value = true
         } else {
             nextPhase()
             resetForNewRound()
@@ -457,5 +473,39 @@ class SessionViewModel @Inject constructor(
         activePlayerIndex.value = firstToAct
         lastRaiserIndex.value = firstToAct
         updateActionFlags()
+    }
+
+    fun onWinnerSelected(playerIndex: Int) {
+        if (selectedWinners.contains(playerIndex)) {
+            selectedWinners.remove(playerIndex)
+        } else {
+            selectedWinners.add(playerIndex)
+        }
+    }
+
+    fun confirmWinnersAndStartNewHand() {
+        val playersInHand = seatAssignments.values.filter { it.lastAction != "폴드" }
+
+        if (playersInHand.size >= 2) { // Showdown occurred
+            playersInHand.forEach { player ->
+                val seatIndex = seatAssignments.entries.find { it.value.name == player.name }?.key
+                if (seatIndex != null) {
+                    val updatedPlayer = player.copy(wentToShowdownCount = player.wentToShowdownCount + 1)
+                    seatAssignments[seatIndex] = updatedPlayer
+                }
+            }
+        }
+
+        selectedWinners.forEach { winnerIndex ->
+            val winnerPlayer = seatAssignments[winnerIndex]
+            if (winnerPlayer != null) {
+                val updatedPlayer = winnerPlayer.copy(wonAtShowdownCount = winnerPlayer.wonAtShowdownCount + 1)
+                seatAssignments[winnerIndex] = updatedPlayer
+            }
+        }
+
+        showWinnerSelection.value = false
+        selectedWinners.clear()
+        newHand()
     }
 }

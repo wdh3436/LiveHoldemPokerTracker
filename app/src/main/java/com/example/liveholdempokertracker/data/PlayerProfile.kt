@@ -24,6 +24,10 @@ data class PlayerProfile(
     val cBetOpportunityCount: Int = 0,
     val cBetActionCount: Int = 0,
 
+    // Showdown
+    val wentToShowdownCount: Int = 0,
+    val wonAtShowdownCount: Int = 0,
+
     val memo: String = ""
 ) {
     fun getVpip(): Int {
@@ -44,5 +48,15 @@ data class PlayerProfile(
     fun getCBet(): Int {
         if (cBetOpportunityCount == 0) return 0
         return (cBetActionCount * 100) / cBetOpportunityCount
+    }
+
+    fun getWmsd(): Int {
+        if (handsPlayed == 0) return 0
+        return (wentToShowdownCount * 100) / handsPlayed
+    }
+
+    fun getWtsd(): Int {
+        if (wentToShowdownCount == 0) return 0
+        return (wonAtShowdownCount * 100) / wentToShowdownCount
     }
 }

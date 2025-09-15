@@ -1,36 +1,26 @@
 package com.example.liveholdempokertracker.ui.session
 
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Undo
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.paint
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.example.liveholdempokertracker.R
 import com.example.liveholdempokertracker.ui.navigation.Screen
 
 @Composable
@@ -41,14 +31,14 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
     val seatAssignments = viewModel.seatAssignments
     val seatCountInt = seatCount.toIntOrNull() ?: 0
     val gamePhase by viewModel.gamePhase
-    val context = LocalContext.current
     val canCheck by viewModel.canCheck
     val canUndo by viewModel.canUndo
+    val showWinnerSelection by viewModel.showWinnerSelection
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(tableColor) // 테이블 색상 적용
+            .background(tableColor)
             .padding(16.dp)
     ) {
         IconButton(
@@ -79,18 +69,15 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
             )
         }
 
-        // 플레이어 좌석 배치 (최대 10명)
-        // 기획서 15페이지를 참고하여 좌석 배치
-        // 현재는 임시로 8개 좌석만 배치 (나머지는 필요에 따라 추가)
         val playerPositions = listOf(
-            Alignment.TopCenter, // 좌석 1
-            Alignment.TopEnd,    // 좌석 2
-            Alignment.CenterEnd,  // 좌석 3
-            Alignment.BottomEnd,  // 좌석 4
-            Alignment.BottomCenter, // 좌석 5
-            Alignment.BottomStart, // 좌석 6
-            Alignment.CenterStart, // 좌석 7
-            Alignment.TopStart   // 좌석 8
+            Alignment.TopCenter,
+            Alignment.TopEnd,
+            Alignment.CenterEnd,
+            Alignment.BottomEnd,
+            Alignment.BottomCenter,
+            Alignment.BottomStart,
+            Alignment.CenterStart,
+            Alignment.TopStart
         )
 
         val dealerIndex = viewModel.seatAssignments.entries.find { it.value.isDealer }?.key ?: 0
@@ -100,6 +87,7 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
         for (i in 0 until seatCountInt) {
             val player = seatAssignments.getOrDefault(i, Player(name = "GUEST"))
             val alignment = playerPositions.getOrNull(i) ?: Alignment.Center
+            val isSelected = viewModel.selectedWinners.contains(i)
 
             Box(modifier = Modifier.align(alignment)) {
                 PlayerSeat(
@@ -109,12 +97,15 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
                     isDealer = i == dealerIndex,
                     isSmallBlind = i == sbIndex,
                     isBigBlind = i == bbIndex,
-                    cardBackColor = cardBackColor
+                    cardBackColor = cardBackColor,
+                    isSelected = isSelected,
+                    modifier = Modifier.clickable(enabled = showWinnerSelection && player.lastAction != "폴드") {
+                        viewModel.onWinnerSelected(i)
+                    }
                 )
             }
         }
 
-        // 테이블 중앙 (커뮤니티 카드)
         Column(
             modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -127,25 +118,34 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
-            // 게임 단계에 따라 버튼을 다르게 표시
-            if (gamePhase == "Showdown") {
-                Button(onClick = { viewModel.newHand() }) {
-                    Text("새 핸드 시작")
-                }
-            } else {
+            if (gamePhase != "Showdown" && !showWinnerSelection) {
                 Button(onClick = { viewModel.nextPhase() }) {
                     Text("다음 단계")
                 }
             }
         }
 
-        // 액션 버튼
-        if (gamePhase != "Showdown") {
+        if (showWinnerSelection) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 16.dp), // 버튼이 화면 하단에 위치하도록 조정
+                    .padding(bottom = 16.dp),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Button(
+                    onClick = { viewModel.confirmWinnersAndStartNewHand() },
+                    enabled = viewModel.selectedWinners.isNotEmpty()
+                ) {
+                    Text("승자 확정 및 다음 핸드")
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 16.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -156,7 +156,6 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
                 }
 
                 if (canCheck) {
-                    // 베팅이 없는 상황: 체크, 베팅 버튼 표시
                     Button(onClick = {
                         viewModel.handleAction(viewModel.activePlayerIndex.value, "체크/콜")
                     }) {
@@ -168,7 +167,6 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
                         Text("베팅")
                     }
                 } else {
-                    // 베팅이 나온 상황: 콜, 레이즈 버튼 표시
                     Button(onClick = {
                         viewModel.handleAction(viewModel.activePlayerIndex.value, "체크/콜")
                     }) {
@@ -189,22 +187,33 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
 fun PlayerSeat(
     player: Player,
     seatNumber: Int,
+    modifier: Modifier = Modifier,
     isActive: Boolean = false,
     isDealer: Boolean,
     isSmallBlind: Boolean,
     isBigBlind: Boolean,
+    isSelected: Boolean,
     cardBackColor: Color
 ) {
-    // --- HUD 통계 계산 ---
     val vpip = if (player.handsPlayed > 0) (player.vpipActionCount * 100) / player.handsPlayed else 0
     val pfr = if (player.handsPlayed > 0) (player.pfrActionCount * 100) / player.handsPlayed else 0
     val threeBet = if (player.threeBetOpportunityCount > 0) (player.threeBetActionCount * 100) / player.threeBetOpportunityCount else 0
     val cBet = if (player.cBetOpportunityCount > 0) (player.cBetActionCount * 100) / player.cBetOpportunityCount else 0
+    val wmsd = if (player.handsPlayed > 0) (player.wentToShowdownCount * 100) / player.handsPlayed else 0
+    val wtsd = if (player.wentToShowdownCount > 0) (player.wonAtShowdownCount * 100) / player.wentToShowdownCount else 0
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        // 플레이어 카드
+    val borderColor = when {
+        isSelected -> Color.Cyan
+        isActive -> Color.Yellow
+        else -> Color.DarkGray
+    }
+
+    Column(
+        modifier = modifier.padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            player.holeCards.forEach { _ -> // 카드 내용은 무시하고 뒷면을 표시
+            player.holeCards.forEach { _ ->
                 CardPlaceholder(width = 30.dp, height = 40.dp, text = "", cardColor = cardBackColor)
             }
         }
@@ -212,11 +221,11 @@ fun PlayerSeat(
 
         Box(
             modifier = Modifier
-                .size(120.dp) // HUD 표시를 위해 박스 크기 증가
-                .background(Color.DarkGray) // 플레이어 아바타/프로필 이미지 Placeholder
+                .size(120.dp)
+                .background(Color.DarkGray)
                 .border(
-                    width = if (isActive) 4.dp else 1.dp,
-                    color = if (isActive) Color.Yellow else Color.DarkGray,
+                    width = if (isActive || isSelected) 3.dp else 1.dp,
+                    color = borderColor,
                     shape = RoundedCornerShape(4.dp)
                 )
                 .padding(4.dp),
@@ -224,22 +233,19 @@ fun PlayerSeat(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                 Text(player.name, color = Color.White, fontSize = 12.sp)
-                
+
                 if (player.lastAction.isNotEmpty()) {
                     Text("(${player.lastAction})", color = Color.White, fontSize = 10.sp)
                 }
                 Spacer(modifier = Modifier.height(4.dp))
-                // --- HUD 통계 표시 ---
-                Text("VPIP: $vpip%", color = Color.White, fontSize = 10.sp)
-                Text("PFR: $pfr%", color = Color.White, fontSize = 10.sp)
-                Text("3-Bet: $threeBet%", color = Color.White, fontSize = 10.sp)
-                Text("C-Bet: $cBet%", color = Color.White, fontSize = 10.sp)
+                Text("VPIP: $vpip% / PFR: $pfr%", color = Color.White, fontSize = 10.sp)
+                Text("3B: $threeBet% / CB: $cBet%", color = Color.White, fontSize = 10.sp)
+                Text("WMSD: $wmsd% / WTSD: $wtsd%", color = Color.White, fontSize = 10.sp)
             }
         }
         Spacer(modifier = Modifier.height(4.dp))
         Text("좌석 $seatNumber", color = Color.White)
 
-        // 딜러, 스몰 블라인드, 빅 블라인드 표시
         Row {
             if (isDealer) {
                 Text("D", color = Color.White, fontSize = 10.sp, modifier = Modifier.background(Color.Blue).padding(2.dp))

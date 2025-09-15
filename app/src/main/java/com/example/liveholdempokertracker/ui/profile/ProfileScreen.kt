@@ -198,6 +198,8 @@ fun StatsCard(profile: com.example.liveholdempokertracker.data.PlayerProfile) {
             StatRow("PFR", "${profile.getPfr()}%")
             StatRow("3-Bet", "${profile.get3Bet()}%")
             StatRow("C-Bet", "${profile.getCBet()}%")
+            StatRow("WMSD", "${profile.getWmsd()}%")
+            StatRow("WTSD", "${profile.getWtsd()}%")
             StatRow("총 핸드 수", "${profile.handsPlayed}")
         }
     }
