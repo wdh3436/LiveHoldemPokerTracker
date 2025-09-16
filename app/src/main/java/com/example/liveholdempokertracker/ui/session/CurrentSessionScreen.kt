@@ -7,12 +7,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,6 +20,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.liveholdempokertracker.data.PlayerProfile
 import com.example.liveholdempokertracker.ui.navigation.Screen
 
 @Composable
@@ -34,6 +34,10 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
     val canCheck by viewModel.canCheck
     val canUndo by viewModel.canUndo
     val showWinnerSelection by viewModel.showWinnerSelection
+    val isHandInProgress by viewModel.isHandInProgress
+
+    val showRemovePlayerDialog = remember { mutableStateOf(false) }
+    val seatToRemove = remember { mutableStateOf<Int?>(null) }
 
     Box(
         modifier = Modifier
@@ -85,22 +89,65 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
         val bbIndex = (dealerIndex + 2) % seatCountInt
 
         for (i in 0 until seatCountInt) {
-            val player = seatAssignments.getOrDefault(i, Player(name = "GUEST"))
+            val player = seatAssignments[i]
             val alignment = playerPositions.getOrNull(i) ?: Alignment.Center
-            val isSelected = viewModel.selectedWinners.contains(i)
+            val isSelectedForWin = viewModel.selectedWinners.contains(i)
 
             Box(modifier = Modifier.align(alignment)) {
-                PlayerSeat(
-                    player = player,
-                    seatNumber = i + 1,
-                    isActive = i == viewModel.activePlayerIndex.value,
-                    isDealer = i == dealerIndex,
-                    isSmallBlind = i == sbIndex,
-                    isBigBlind = i == bbIndex,
-                    cardBackColor = cardBackColor,
-                    isSelected = isSelected,
-                    modifier = Modifier.clickable(enabled = showWinnerSelection && player.lastAction != "폴드") {
-                        viewModel.onWinnerSelected(i)
+                if (player != null) {
+                    val canBeClicked = (showWinnerSelection && player.lastAction != "폴드") || (!isHandInProgress && !showWinnerSelection)
+                    PlayerSeat(
+                        player = player,
+                        seatNumber = i + 1,
+                        isActive = i == viewModel.activePlayerIndex.value,
+                        isDealer = i == dealerIndex,
+                        isSmallBlind = i == sbIndex,
+                        isBigBlind = i == bbIndex,
+                        cardBackColor = cardBackColor,
+                        isSelected = isSelectedForWin,
+                        modifier = Modifier.clickable(enabled = canBeClicked) {
+                            if (showWinnerSelection) {
+                                viewModel.onWinnerSelected(i)
+                            } else {
+                                seatToRemove.value = i
+                                showRemovePlayerDialog.value = true
+                            }
+                        }
+                    )
+                } else {
+                    EmptySeat(
+                        seatNumber = i + 1,
+                        modifier = Modifier.clickable(enabled = !isHandInProgress) {
+                            // TODO: Navigate to profile list to select a player
+                            viewModel.addPlayer(i, PlayerProfile(name = "Player ${i + 1}"))
+                        }
+                    )
+                }
+            }
+        }
+
+        if (showRemovePlayerDialog.value) {
+            val seatIndex = seatToRemove.value
+            if (seatIndex != null) {
+                val playerToRemove = viewModel.seatAssignments[seatIndex]
+                AlertDialog(
+                    onDismissRequest = { showRemovePlayerDialog.value = false },
+                    title = { Text("플레이어 내보내기") },
+                    text = { Text("${playerToRemove?.name}님을 좌석에서 내보내시겠습니까?") },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                viewModel.removePlayer(seatIndex)
+                                showRemovePlayerDialog.value = false
+                            }
+                        ) {
+                            Text("확인")
+                        }
+                    },
+                    dismissButton = {
+                        Button(onClick = { showRemovePlayerDialog.value = false }) {
+                            Text("취소")
+                        }
                     }
                 )
             }
@@ -180,6 +227,40 @@ fun CurrentSessionScreen(navController: NavController, viewModel: SessionViewMod
                 }
             }
         }
+    }
+}
+
+@Composable
+fun EmptySeat(
+    seatNumber: Int,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.padding(4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(44.dp)) // Placeholder for cards
+        Box(
+            modifier = Modifier
+                .size(120.dp)
+                .background(Color.DarkGray.copy(alpha = 0.5f))
+                .border(
+                    width = 2.dp,
+                    color = Color.Gray,
+                    shape = RoundedCornerShape(4.dp)
+                )
+                .padding(4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Add Player",
+                tint = Color.White,
+                modifier = Modifier.size(40.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text("좌석 $seatNumber", color = Color.White)
     }
 }
 

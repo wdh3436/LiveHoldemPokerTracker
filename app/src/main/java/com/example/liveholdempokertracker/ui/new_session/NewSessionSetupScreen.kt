@@ -1,13 +1,9 @@
 package com.example.liveholdempokertracker.ui.new_session
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -17,14 +13,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.liveholdempokertracker.ui.profile.ProfileViewModel
-import com.example.liveholdempokertracker.ui.session.Player
 import com.example.liveholdempokertracker.ui.session.SessionViewModel
 
 @Composable
@@ -45,7 +38,18 @@ fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewMo
             title = { Text("프로필 선택") },
             text = {
                 LazyColumn {
-                    // Add a GUEST option
+                    item {
+                        Text(
+                            text = "좌석 비우기",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.removePlayer(selectedSeatIndex)
+                                    showProfileDialog = false
+                                }
+                                .padding(16.dp)
+                        )
+                    }
                     item {
                         Text(
                             text = "GUEST",
@@ -58,7 +62,6 @@ fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewMo
                                 .padding(16.dp)
                         )
                     }
-                    // List saved profiles
                     items(profiles) { profileWithTags ->
                         Text(
                             text = profileWithTags.profile.name,
@@ -116,7 +119,7 @@ fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewMo
                             selectedSeatIndex = index
                             showProfileDialog = true
                         }) {
-                            Text(seatAssignments.getOrDefault(index, Player(name = "프로필 할당")).name)
+                            Text(seatAssignments[index]?.name ?: "프로필 할당")
                         }
                     }
                 }
@@ -132,7 +135,7 @@ fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewMo
                 viewModel.startFirstGame()
                 navController.navigate("current_session")
             },
-            enabled = seatCountInt > 0 && seatAssignments.size == seatCountInt
+            enabled = seatCountInt > 0 && seatAssignments.size >= 2
         ) {
             Text("세션 시작")
         }

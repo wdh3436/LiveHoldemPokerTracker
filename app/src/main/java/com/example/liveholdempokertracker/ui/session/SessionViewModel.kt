@@ -68,6 +68,7 @@ class SessionViewModel @Inject constructor(
     var isBetMadeThisRound = mutableStateOf(false)
     val canCheck = mutableStateOf(false)
     val canUndo = mutableStateOf(false)
+    val isHandInProgress = mutableStateOf(false)
 
     val showWinnerSelection = mutableStateOf(false)
     val selectedWinners = mutableStateListOf<Int>()
@@ -279,6 +280,7 @@ class SessionViewModel @Inject constructor(
 
         if (gamePhase.value == "Showdown") {
             showWinnerSelection.value = true
+            isHandInProgress.value = false
         }
 
         saveGameState()
@@ -289,70 +291,104 @@ class SessionViewModel @Inject constructor(
     fun addRiverCard() { communityCards.add("10♠") }
 
     fun startFirstGame() {
-        val assignedSeats = seatAssignments.keys.sorted()
-        if (assignedSeats.isNotEmpty()) {
-            startGame(assignedSeats.first())
+        isHandInProgress.value = true
+        val firstPlayer = seatAssignments.keys.sorted().firstOrNull()
+        if (firstPlayer != null) {
+            setupNewHand(firstPlayer)
+        } else {
+            isHandInProgress.value = false
         }
+    }
+
+    private fun findNextOccupiedSeat(startIndex: Int): Int {
+        val totalSeats = seatCount.value.toIntOrNull() ?: 0
+        if (totalSeats == 0 || seatAssignments.isEmpty()) return -1
+
+        var currentIndex = startIndex
+        do {
+            currentIndex = (currentIndex + 1) % totalSeats
+        } while (seatAssignments[currentIndex] == null)
+        return currentIndex
+    }
+
+    private fun findNextActivePlayer(startIndex: Int): Int {
+        val totalSeats = seatCount.value.toIntOrNull() ?: 0
+        if (totalSeats == 0 || seatAssignments.isEmpty()) return -1
+
+        var currentIndex = startIndex
+        do {
+            currentIndex = (currentIndex + 1) % totalSeats
+        } while (seatAssignments[currentIndex] == null || seatAssignments[currentIndex]?.lastAction == "폴드")
+        return currentIndex
     }
 
     fun newHand() {
-        val assignedSeats = seatAssignments.keys.sorted()
-        if (assignedSeats.isEmpty()) return
-        val currentDealerKey = seatAssignments.entries.find { it.value.isDealer }?.key ?: (assignedSeats.lastOrNull() ?: -1)
-        if (currentDealerKey != -1) {
-            seatAssignments[currentDealerKey] = seatAssignments[currentDealerKey]!!.copy(isDealer = false)
+        isHandInProgress.value = true
+        if (seatAssignments.size < 2) {
+            isHandInProgress.value = false
+            return
         }
-        val currentDealerListIndex = assignedSeats.indexOf(currentDealerKey)
-        val nextDealerListIndex = (currentDealerListIndex + 1) % assignedSeats.size
-        val nextDealerIndex = assignedSeats[nextDealerListIndex]
-        seatAssignments.keys.forEach { index ->
-            val player = seatAssignments[index]
-            if (player != null) {
-                seatAssignments[index] = player.copy(lastAction = "", holeCards = emptyList())
-            }
+
+        val currentDealerKey = seatAssignments.entries.find { it.value.isDealer }?.key
+        val nextDealerIndex = if (currentDealerKey != null) {
+            findNextOccupiedSeat(currentDealerKey)
+        } else {
+            seatAssignments.keys.sorted().first()
         }
-        communityCards.clear()
-        gamePhase.value = "Pre-Flop"
-        startGame(nextDealerIndex)
-        history.clear()
-        canUndo.value = false
-        saveGameState()
+
+        setupNewHand(nextDealerIndex)
     }
 
-    fun startGame(dealerIndex: Int) {
-        viewModelScope.launch(Dispatchers.IO) {
-            settingsRepository.updateLastSessionSetup(seatCount.value.toIntOrNull() ?: 0, seatAssignments)
-        }
+    private fun setupNewHand(dealerIndex: Int) {
+        // 1. Reset hand-specific states
         isPreFlopBbOption = true
         vpipPlayersThisHand.clear()
         pfrPlayersThisHand.clear()
         threeBetOpportunityPlayersThisHand.clear()
         cBetOpportunityPlayerThisHand = null
         preFlopRaiser = null
-        seatAssignments.keys.forEach { index ->
-            val player = seatAssignments[index]
-            if (player != null) {
-                seatAssignments[index] = player.copy(handsPlayed = player.handsPlayed + 1)
-            }
+        communityCards.clear()
+        gamePhase.value = "Pre-Flop"
+        history.clear()
+        canUndo.value = false
+
+        // 2. Reset player states for the new hand and set the new dealer
+        val currentAssignments = seatAssignments.toMap()
+        currentAssignments.forEach { (index, player) ->
+            seatAssignments[index] = player.copy(
+                lastAction = "",
+                holeCards = emptyList(),
+                isDealer = (index == dealerIndex),
+                handsPlayed = player.handsPlayed + 1
+            )
         }
-        val seatCount = seatAssignments.size
-        if (seatCount == 0) return
-        seatAssignments[dealerIndex] = seatAssignments[dealerIndex]!!.copy(isDealer = true)
-        val assignedSeats = seatAssignments.keys.sorted()
-        val dealerListIndex = assignedSeats.indexOf(dealerIndex)
-        val sbListIndex = (dealerListIndex + 1) % assignedSeats.size
-        val bbListIndex = (dealerListIndex + 2) % assignedSeats.size
-        val sbIndex = assignedSeats[sbListIndex]
-        val bbIndex = assignedSeats[bbListIndex]
-        seatAssignments[sbIndex] = seatAssignments[sbIndex]!!.copy(lastAction = "SB")
-        seatAssignments[bbIndex] = seatAssignments[bbIndex]!!.copy(lastAction = "BB")
-        lastRaiserIndex.value = bbIndex
-        val utgListIndex = (dealerListIndex + 3) % assignedSeats.size
-        val utgIndex = assignedSeats[utgListIndex]
-        activePlayerIndex.value = utgIndex
+
+        // 3. Set blinds and determine first player to act
+        if (seatAssignments.size == 2) {
+            // Heads-up logic
+            val otherPlayerIndex = seatAssignments.keys.first { it != dealerIndex }
+            seatAssignments[dealerIndex] = seatAssignments[dealerIndex]!!.copy(lastAction = "SB")
+            seatAssignments[otherPlayerIndex] = seatAssignments[otherPlayerIndex]!!.copy(lastAction = "BB")
+            lastRaiserIndex.value = otherPlayerIndex
+            activePlayerIndex.value = dealerIndex
+        } else {
+            // 3+ players logic
+            val sbIndex = findNextOccupiedSeat(dealerIndex)
+            val bbIndex = findNextOccupiedSeat(sbIndex)
+            val utgIndex = findNextOccupiedSeat(bbIndex)
+
+            seatAssignments[sbIndex] = seatAssignments[sbIndex]!!.copy(lastAction = "SB")
+            seatAssignments[bbIndex] = seatAssignments[bbIndex]!!.copy(lastAction = "BB")
+            lastRaiserIndex.value = bbIndex
+            activePlayerIndex.value = utgIndex
+        }
+
         isBetMadeThisRound.value = true
         updateActionFlags()
         saveGameState()
+        viewModelScope.launch(Dispatchers.IO) {
+            settingsRepository.updateLastSessionSetup(seatCount.value.toIntOrNull() ?: 0, seatAssignments)
+        }
     }
 
     fun handleAction(playerIndex: Int, action: String) {
@@ -385,6 +421,7 @@ class SessionViewModel @Inject constructor(
             if (activePlayers <= 1) {
                 gamePhase.value = "Showdown"
                 showWinnerSelection.value = true
+                isHandInProgress.value = false
                 saveGameState()
                 return
             }
@@ -403,24 +440,28 @@ class SessionViewModel @Inject constructor(
     }
 
     private fun moveToNextPlayer(startFrom: Int) {
+        val totalSeats = seatCount.value.toIntOrNull() ?: 0
+        if (totalSeats == 0) return
+
         var nextIndex = startFrom
         do {
-            nextIndex = (nextIndex + 1) % seatAssignments.size
+            nextIndex = (nextIndex + 1) % totalSeats
         } while (seatAssignments[nextIndex]?.lastAction == "폴드" || seatAssignments[nextIndex] == null)
+
         if (gamePhase.value == "Pre-Flop" && lastRaiserIndex.value != null) {
             val nextPlayer = seatAssignments[nextIndex]
             if (nextPlayer != null && threeBetOpportunityPlayersThisHand.add(nextIndex)) {
                 seatAssignments[nextIndex] = nextPlayer.copy(threeBetOpportunityCount = nextPlayer.threeBetOpportunityCount + 1)
             }
         }
+
         if (nextIndex == lastRaiserIndex.value) {
             if (gamePhase.value == "Pre-Flop" && isPreFlopBbOption) {
                 activePlayerIndex.value = nextIndex
             } else {
                 endBettingRound()
             }
-        }
-        else {
+        } else {
             activePlayerIndex.value = nextIndex
         }
         updateActionFlags()
@@ -448,28 +489,32 @@ class SessionViewModel @Inject constructor(
             return
         }
         val dealerKey = seatAssignments.entries.find { it.value.isDealer }?.key ?: -1
-        val dealerListIndex = assignedSeats.indexOf(dealerKey)
-        if (dealerListIndex == -1) {
+        if (dealerKey == -1) { // Should not happen
             canCheck.value = false
             return
         }
-        val bbListIndex = (dealerListIndex + 2) % assignedSeats.size
-        val bbIndex = assignedSeats[bbListIndex]
+
+        // This logic for canCheck might be flawed with sparse seating.
+        // A simpler check: is there a bet in the current round?
+        // The isBetMadeThisRound flag handles this for Flop onwards.
+        // For pre-flop, it's special.
+        val bbIndex = findNextOccupiedSeat(findNextOccupiedSeat(dealerKey)) // Find BB
         val currentPlayerIsBB = activePlayerIndex.value == bbIndex
         val bbCanCheckPreflop = gamePhase.value == "Pre-Flop" &&
                                  currentPlayerIsBB &&
                                  isPreFlopBbOption
+
         canCheck.value = !isBetMadeThisRound.value || bbCanCheckPreflop
     }
 
     private fun resetForNewRound() {
         isBetMadeThisRound.value = false
-        val dealerIndex = seatAssignments.entries.find { it.value.isDealer }?.key ?: 0
-        lastRaiserIndex.value = null
-        var firstToAct = (dealerIndex + 1) % seatAssignments.size
-        while(seatAssignments[firstToAct]?.lastAction == "폴드") {
-            firstToAct = (firstToAct + 1) % seatAssignments.size
-        }
+        val dealerIndex = seatAssignments.entries.find { it.value.isDealer }?.key ?: -1
+        if (dealerIndex == -1) return
+
+        val firstToAct = findNextActivePlayer(dealerIndex)
+        if (firstToAct == -1) return
+
         activePlayerIndex.value = firstToAct
         lastRaiserIndex.value = firstToAct
         updateActionFlags()
@@ -506,6 +551,20 @@ class SessionViewModel @Inject constructor(
 
         showWinnerSelection.value = false
         selectedWinners.clear()
+        isHandInProgress.value = false
         newHand()
+    }
+
+    fun removePlayer(seatIndex: Int) {
+        if (isHandInProgress.value) return
+        seatAssignments.remove(seatIndex)
+        saveGameState()
+    }
+
+    fun addPlayer(seatIndex: Int, profile: PlayerProfile) {
+        if (isHandInProgress.value) return
+        if (seatAssignments.containsKey(seatIndex)) return
+        assignProfile(seatIndex, profile)
+        saveGameState()
     }
 }
