@@ -7,7 +7,9 @@ sealed class Screen(val route: String) {
     object Profile : Screen("profile/{profileId}") {
         fun createRoute(profileId: Int) = "profile/$profileId"
     }
-    object ProfileList : Screen("profile_list")
+    object ProfileList : Screen("profile_list?seatNumber={seatNumber}") {
+        fun createRoute(seatNumber: Int = -1) = "profile_list?seatNumber=$seatNumber"
+    }
     object MergeProfile : Screen("merge_profile")
     object Settings : Screen("settings")
     object AppSettings : Screen("app_settings")

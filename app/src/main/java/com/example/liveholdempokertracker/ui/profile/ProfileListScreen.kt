@@ -32,22 +32,31 @@ import com.example.liveholdempokertracker.data.Tag
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ProfileListScreen(navController: NavController, viewModel: ProfileViewModel = hiltViewModel()) {
+fun ProfileListScreen(
+    navController: NavController, 
+    viewModel: ProfileViewModel = hiltViewModel(),
+    seatNumber: Int = -1
+) {
     val allProfiles by viewModel.profiles.collectAsState()
     val recentProfiles by viewModel.recentProfiles.collectAsState()
     val searchText by viewModel.searchText.collectAsState()
     var newProfileName by remember { mutableStateOf("") }
 
-    val pagerState = rememberPagerState(pageCount = { 2 })
+    val isSelectionMode = seatNumber != -1
+
+    val pagerState = rememberPagerState(pageCount = { 3 })
     val coroutineScope = rememberCoroutineScope()
-    val tabs = listOf("전체", "최근")
+    val tabs = listOf("전체", "최근", "GUEST")
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        Text("프로필 관리", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            text = if (isSelectionMode) "플레이어 선택" else "프로필 관리",
+            style = MaterialTheme.typography.headlineMedium
+        )
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
@@ -77,20 +86,76 @@ fun ProfileListScreen(navController: NavController, viewModel: ProfileViewModel 
             state = pagerState,
             modifier = Modifier.weight(1f)
         ) { page ->
-            val listToShow = if (page == 0) allProfiles else recentProfiles
-            LazyColumn(modifier = Modifier.fillMaxSize()) {
-                items(listToShow) { profileWithTags ->
-                    ProfileListItem(
-                        profileWithTags = profileWithTags,
-                        onDelete = { profile -> viewModel.deleteProfile(profile) },
-                        onItemClick = { profileId -> navController.navigate(Screen.Profile.createRoute(profileId)) }
-                    )
-                    Divider()
+            when (page) {
+                0 -> {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(allProfiles) { profileWithTags ->
+                            ProfileListItem(
+                                profileWithTags = profileWithTags,
+                                onDelete = { profile -> viewModel.deleteProfile(profile) },
+                                onItemClick = { profileId, profileName ->
+                                    if (isSelectionMode) {
+                                        navController.previousBackStackEntry?.savedStateHandle?.set("selectedProfileName", profileName)
+                                        navController.popBackStack()
+                                    } else {
+                                        navController.navigate(Screen.Profile.createRoute(profileId))
+                                    }
+                                },
+                                isSelectionMode = isSelectionMode
+                            )
+                            Divider()
+                        }
+                    }
+                }
+                1 -> {
+                    LazyColumn(modifier = Modifier.fillMaxSize()) {
+                        items(recentProfiles) { profileWithTags ->
+                            ProfileListItem(
+                                profileWithTags = profileWithTags,
+                                onDelete = { profile -> viewModel.deleteProfile(profile) },
+                                onItemClick = { profileId, profileName ->
+                                    if (isSelectionMode) {
+                                        navController.previousBackStackEntry?.savedStateHandle?.set("selectedProfileName", profileName)
+                                        navController.popBackStack()
+                                    } else {
+                                        navController.navigate(Screen.Profile.createRoute(profileId))
+                                    }
+                                },
+                                isSelectionMode = isSelectionMode
+                            )
+                            Divider()
+                        }
+                    }
+                }
+                2 -> {
+                    Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+                        Text(
+                            text = "GUEST",
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                if (isSelectionMode) {
+                                    navController.previousBackStackEntry?.savedStateHandle?.set("selectedProfileName", "GUEST")
+                                    navController.popBackStack()
+                                }
+                            }.padding(vertical = 8.dp)
+                        )
+                        Divider()
+                        Text(
+                            text = "좌석 비우기",
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.fillMaxWidth().clickable {
+                                if (isSelectionMode) {
+                                    navController.previousBackStackEntry?.savedStateHandle?.set("selectedProfileName", "EMPTY")
+                                    navController.popBackStack()
+                                }
+                            }.padding(vertical = 8.dp)
+                        )
+                    }
                 }
             }
         }
 
-        if (pagerState.currentPage == 0) {
+        if (pagerState.currentPage == 0 && !isSelectionMode) {
             Spacer(modifier = Modifier.height(16.dp))
 
             // Add new profile UI
@@ -132,7 +197,8 @@ fun ProfileListScreen(navController: NavController, viewModel: ProfileViewModel 
 fun ProfileListItem(
     profileWithTags: ProfileWithTags,
     onDelete: (PlayerProfile) -> Unit,
-    onItemClick: (Int) -> Unit
+    onItemClick: (Int, String) -> Unit,
+    isSelectionMode: Boolean
 ) {
     val profile = profileWithTags.profile
     val tags = profileWithTags.tags
@@ -140,7 +206,7 @@ fun ProfileListItem(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onItemClick(profile.id) }
+            .clickable { onItemClick(profile.id, profile.name) }
             .padding(vertical = 8.dp)
     ) {
         Row(
@@ -152,9 +218,11 @@ fun ProfileListItem(
             Text(text = "VPIP: ${profile.getVpip()}%", style = MaterialTheme.typography.bodyMedium)
             Spacer(modifier = Modifier.width(8.dp))
             Text(text = "PFR: ${profile.getPfr()}%", style = MaterialTheme.typography.bodyMedium)
-            Spacer(modifier = Modifier.width(8.dp))
-            IconButton(onClick = { onDelete(profile) }) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete Profile")
+            if (!isSelectionMode) {
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(onClick = { onDelete(profile) }) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete Profile")
+                }
             }
         }
         if (tags.isNotEmpty()) {

@@ -70,6 +70,8 @@ class SessionViewModel @Inject constructor(
     val canUndo = mutableStateOf(false)
     val isHandInProgress = mutableStateOf(false)
 
+    var selectedSeatIndex = mutableStateOf(-1)
+
     val showWinnerSelection = mutableStateOf(false)
     val selectedWinners = mutableStateListOf<Int>()
 

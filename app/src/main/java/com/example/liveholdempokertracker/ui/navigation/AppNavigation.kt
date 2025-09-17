@@ -47,8 +47,17 @@ fun AppNavigation() {
         ) {
             ProfileScreen(navController = navController)
         }
-        composable(Screen.ProfileList.route) {
-            ProfileListScreen(navController = navController)
+        composable(
+            route = Screen.ProfileList.route,
+            arguments = listOf(navArgument("seatNumber") { 
+                type = NavType.IntType
+                defaultValue = -1
+            })
+        ) { backStackEntry ->
+            ProfileListScreen(
+                navController = navController,
+                seatNumber = backStackEntry.arguments?.getInt("seatNumber") ?: -1
+            )
         }
         composable(Screen.MergeProfile.route) {
             MergeProfileScreen(navController = navController)

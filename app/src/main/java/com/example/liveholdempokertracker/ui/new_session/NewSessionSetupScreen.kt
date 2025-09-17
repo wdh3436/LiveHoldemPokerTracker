@@ -1,87 +1,71 @@
 package com.example.liveholdempokertracker.ui.new_session
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.liveholdempokertracker.data.PlayerProfile
+import com.example.liveholdempokertracker.ui.navigation.Screen
 import com.example.liveholdempokertracker.ui.profile.ProfileViewModel
 import com.example.liveholdempokertracker.ui.session.SessionViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewModel) {
     val profileViewModel: ProfileViewModel = hiltViewModel()
-    val profiles by profileViewModel.profiles.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
 
     var seatCount by viewModel.seatCount
     val seatAssignments = viewModel.seatAssignments
     val seatCountInt = seatCount.toIntOrNull() ?: 0
 
-    var showProfileDialog by remember { mutableStateOf(false) }
-    var selectedSeatIndex by remember { mutableStateOf(-1) }
+    var selectedSeatIndex by viewModel.selectedSeatIndex
 
-    if (showProfileDialog) {
-        AlertDialog(
-            onDismissRequest = { showProfileDialog = false },
-            title = { Text("프로필 선택") },
-            text = {
-                LazyColumn {
-                    item {
-                        Text(
-                            text = "좌석 비우기",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.removePlayer(selectedSeatIndex)
-                                    showProfileDialog = false
-                                }
-                                .padding(16.dp)
-                        )
+    val savedStateHandle = navController.currentBackStackEntry?.savedStateHandle
+    val selectedProfileName by savedStateHandle?.getStateFlow<String?>("selectedProfileName", null)?.collectAsState() ?: remember { mutableStateOf(null) }
+
+    LaunchedEffect(selectedProfileName) {
+        println("Debug: LaunchedEffect triggered. Profile name: $selectedProfileName")
+        selectedProfileName?.let { profileName ->
+            val seatIndex = viewModel.selectedSeatIndex.value
+            println("Debug: Processing profile '$profileName' for seat index $seatIndex")
+            if (seatIndex != -1) {
+                when (profileName) {
+                    "GUEST" -> {
+                        println("Debug: Assigning GUEST to seat $seatIndex")
+                        viewModel.assignProfile(seatIndex, PlayerProfile(name = "GUEST"))
                     }
-                    item {
-                        Text(
-                            text = "GUEST",
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.assignProfile(selectedSeatIndex, com.example.liveholdempokertracker.data.PlayerProfile(name = "GUEST"))
-                                    showProfileDialog = false
-                                }
-                                .padding(16.dp)
-                        )
+                    "EMPTY" -> {
+                        println("Debug: Removing player from seat $seatIndex")
+                        viewModel.removePlayer(seatIndex)
                     }
-                    items(profiles) { profileWithTags ->
-                        Text(
-                            text = profileWithTags.profile.name,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    viewModel.assignProfile(selectedSeatIndex, profileWithTags.profile)
-                                    showProfileDialog = false
-                                }
-                                .padding(16.dp)
-                        )
+                    else -> {
+                        coroutineScope.launch {
+                            val profile = profileViewModel.getProfileByName(profileName)
+                            println("Debug: Fetched profile: ${profile?.name}")
+                            if (profile != null) {
+                                println("Debug: Assigning ${profile.name} to seat $seatIndex")
+                                viewModel.assignProfile(seatIndex, profile)
+                            }
+                        }
                     }
                 }
-            },
-            confirmButton = {
-                TextButton(onClick = { showProfileDialog = false }) {
-                    Text("취소")
-                }
+                // Reset state after processing
+                println("Debug: Resetting state.")
+                savedStateHandle?.set("selectedProfileName", null)
+                viewModel.selectedSeatIndex.value = -1
             }
-        )
+        }
     }
 
     Column(
@@ -117,7 +101,7 @@ fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewMo
                         Text("좌석 ${index + 1}")
                         Button(onClick = {
                             selectedSeatIndex = index
-                            showProfileDialog = true
+                            navController.navigate(Screen.ProfileList.createRoute(seatNumber = index))
                         }) {
                             Text(seatAssignments[index]?.name ?: "프로필 할당")
                         }
@@ -128,12 +112,11 @@ fun NewSessionSetupScreen(navController: NavController, viewModel: SessionViewMo
             Spacer(modifier = Modifier.weight(1f))
         }
 
-
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = {
                 viewModel.startFirstGame()
-                navController.navigate("current_session")
+                navController.navigate(Screen.CurrentSession.route)
             },
             enabled = seatCountInt > 0 && seatAssignments.size >= 2
         ) {

@@ -139,4 +139,10 @@ class ProfileViewModel @Inject constructor(
             playerProfileDao.mergeProfiles(sourceProfile, destinationProfile)
         }
     }
+
+    suspend fun getProfileByName(name: String): PlayerProfile? {
+        return withContext(Dispatchers.IO) {
+            playerProfileDao.getProfileByName(name)
+        }
+    }
 }
