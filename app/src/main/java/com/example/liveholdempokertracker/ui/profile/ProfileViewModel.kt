@@ -16,10 +16,44 @@ import javax.inject.Inject
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val playerProfileDao: PlayerProfileDao,
+    private val settingsRepository: SettingsRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    val profiles: StateFlow<List<ProfileWithTags>> = playerProfileDao.getAllProfilesWithTags()
+    private val _searchText = MutableStateFlow("")
+    val searchText = _searchText.asStateFlow()
+
+    fun onSearchTextChange(text: String) {
+        _searchText.value = text
+    }
+
+    private val _allProfiles = playerProfileDao.getAllProfilesWithTags()
+
+    val profiles: StateFlow<List<ProfileWithTags>> = searchText
+        .combine(_allProfiles) { text, profiles ->
+            if (text.isBlank()) {
+                profiles
+            } else {
+                profiles.filter {
+                    it.profile.name.contains(text, ignoreCase = true)
+                }
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val recentProfiles: StateFlow<List<ProfileWithTags>> = settingsRepository.lastSessionSetupFlow
+        .flatMapLatest { setup ->
+            if (setup == null) {
+                flowOf(emptyList())
+            } else {
+                playerProfileDao.getProfilesByNames(setup.assignments.values.toList())
+            }
+        }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),

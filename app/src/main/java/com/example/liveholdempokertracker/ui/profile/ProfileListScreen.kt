@@ -1,12 +1,16 @@
 package com.example.liveholdempokertracker.ui.profile
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,13 +18,29 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.liveholdempokertracker.ui.navigation.Screen
+import com.example.liveholdempokertracker.data.PlayerProfile
 import com.example.liveholdempokertracker.data.ProfileWithTags
+import com.example.liveholdempokertracker.ui.navigation.Screen
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
+import com.example.liveholdempokertracker.data.Tag
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ProfileListScreen(navController: NavController, viewModel: ProfileViewModel = hiltViewModel()) {
-    val profiles by viewModel.profiles.collectAsState()
+    val allProfiles by viewModel.profiles.collectAsState()
+    val recentProfiles by viewModel.recentProfiles.collectAsState()
+    val searchText by viewModel.searchText.collectAsState()
     var newProfileName by remember { mutableStateOf("") }
+
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    val coroutineScope = rememberCoroutineScope()
+    val tabs = listOf("전체", "최근")
 
     Column(
         modifier = Modifier
@@ -30,49 +50,79 @@ fun ProfileListScreen(navController: NavController, viewModel: ProfileViewModel 
         Text("프로필 관리", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Add new profile UI
-        Row(
+        OutlinedTextField(
+            value = searchText,
+            onValueChange = viewModel::onSearchTextChange,
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            label = { Text("검색") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TabRow(
+            selectedTabIndex = pagerState.currentPage,
         ) {
-            OutlinedTextField(
-                value = newProfileName,
-                onValueChange = { newProfileName = it },
-                label = { Text("새 프로필 이름") },
-                modifier = Modifier.weight(1f)
-            )
-            Button(
-                onClick = {
-                    viewModel.addProfile(newProfileName)
-                    newProfileName = "" // Clear input field
-                },
-                enabled = newProfileName.isNotBlank()
-            ) {
-                Text("추가")
+            tabs.forEachIndexed { index, title ->
+                Tab(
+                    text = { Text(title) },
+                    selected = pagerState.currentPage == index,
+                    onClick = { coroutineScope.launch { pagerState.animateScrollToPage(index) } }
+                )
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = { navController.navigate(Screen.MergeProfile.route) },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("프로필 데이터 합치기")
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier.weight(1f)
+        ) { page ->
+            val listToShow = if (page == 0) allProfiles else recentProfiles
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                items(listToShow) { profileWithTags ->
+                    ProfileListItem(
+                        profileWithTags = profileWithTags,
+                        onDelete = { profile -> viewModel.deleteProfile(profile) },
+                        onItemClick = { profileId -> navController.navigate(Screen.Profile.createRoute(profileId)) }
+                    )
+                    Divider()
+                }
+            }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        if (pagerState.currentPage == 0) {
+            Spacer(modifier = Modifier.height(16.dp))
 
-        // List of profiles
-        LazyColumn(modifier = Modifier.fillMaxSize()) {
-            items(profiles) { profileWithTags ->
-                ProfileListItem(
-                    profileWithTags = profileWithTags,
-                    onDelete = { profile -> viewModel.deleteProfile(profile) },
-                    onItemClick = { profileId -> navController.navigate(Screen.Profile.createRoute(profileId)) }
+            // Add new profile UI
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = newProfileName,
+                    onValueChange = { newProfileName = it },
+                    label = { Text("새 프로필 이름") },
+                    modifier = Modifier.weight(1f)
                 )
-                Divider()
+                Button(
+                    onClick = {
+                        viewModel.addProfile(newProfileName)
+                        newProfileName = "" // Clear input field
+                    },
+                    enabled = newProfileName.isNotBlank()
+                ) {
+                    Text("추가")
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Button(
+                onClick = { navController.navigate(Screen.MergeProfile.route) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("프로필 데이터 합치기")
             }
         }
     }
@@ -81,7 +131,7 @@ fun ProfileListScreen(navController: NavController, viewModel: ProfileViewModel 
 @Composable
 fun ProfileListItem(
     profileWithTags: ProfileWithTags,
-    onDelete: (com.example.liveholdempokertracker.data.PlayerProfile) -> Unit,
+    onDelete: (PlayerProfile) -> Unit,
     onItemClick: (Int) -> Unit
 ) {
     val profile = profileWithTags.profile
@@ -113,6 +163,37 @@ fun ProfileListItem(
                 items(tags) { tag ->
                     TagChip(tag = tag, onRemoveClick = { /* No removal from list item */ })
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun TagChip(tag: Tag, onRemoveClick: (() -> Unit)? = null) {
+    Card(
+        modifier = Modifier.padding(2.dp),
+        shape = RoundedCornerShape(8.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(tag.tagColor))
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = tag.tagName,
+                color = if (Color(tag.tagColor).luminance() > 0.5) Color.Black else Color.White,
+                style = MaterialTheme.typography.labelSmall
+            )
+            if (onRemoveClick != null) {
+                Spacer(modifier = Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = "Remove Tag",
+                    modifier = Modifier
+                        .size(12.dp)
+                        .clickable { onRemoveClick() },
+                    tint = if (Color(tag.tagColor).luminance() > 0.5) Color.Black else Color.White
+                )
             }
         }
     }

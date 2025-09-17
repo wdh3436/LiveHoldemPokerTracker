@@ -32,6 +32,10 @@ interface PlayerProfileDao {
     @Query("SELECT * FROM player_profiles WHERE id = :id")
     fun getProfileWithTags(id: Int): Flow<ProfileWithTags?>
 
+    @Transaction
+    @Query("SELECT * FROM player_profiles WHERE name IN (:names)")
+    fun getProfilesByNames(names: List<String>): Flow<List<ProfileWithTags>>
+
     // Tag specific queries
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertTag(tag: Tag): Long
